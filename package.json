@@ -1,0 +1,16 @@
+{
+  "name": "github-pretty-readme",
+  "version": "0.0.0",
+  "description": "API for generating pretty graphics for markdown documents",
+  "main": "index.js",
+  "repository": "https://github.com/kevinthelago/github-pretty-readme.git",
+  "author": "Kevin Lago",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "node express.js"
+  }
+}
