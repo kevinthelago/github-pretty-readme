@@ -9,10 +9,12 @@
   "dependencies": {
     "@google/generative-ai": "^0.23.0",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "octokit": "^4.1.2"
   },
   "type": "module",
   "scripts": {
-    "start": "node express.js"
+    "start": "node express.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   }
 }

@@ -1,10 +1,16 @@
 class Tile {
     constructor({
         height = 540,
-        width = 960
+        width = 960,
+        css = ""
     }) {
         this.height = height;
-        this.width = width
+        this.width = width;
+        this.css = "";
+    }
+
+    setCss(value) {
+        this.css = value;
     }
 
     render(body) {
@@ -14,7 +20,12 @@ class Tile {
                 width="${this.width}"
                 viewBox="0 0 ${this.width} ${this.height}"
             >
-                ${body}
+                <style>
+                    ${this.css}
+                </style>
+                <g>
+                    ${body}
+                </g>
             </svg>
         `
     }
