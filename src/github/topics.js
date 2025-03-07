@@ -1,12 +1,16 @@
 import { App } from "octokit";
 
 const githubAppId = process.env.GITHUB_APP_ID;
-const githubPrivateKey = process.env.GITHUB_PRIVATE_KEY;
+const githubPrivateKey = process.env.GITHUB_SECRET_KEY;
 
-const octokit = new Octokit({
+const octokit = new App({
     appId: githubAppId,
     privateKey: githubPrivateKey
 });
 
-export { octokit };
+const getTopics = (username) => {
+    return ["javascript", "node-js", "express-js", "generative-ai", "google-gemini"]
+};
+
+export { getTopics };
 export default octokit;

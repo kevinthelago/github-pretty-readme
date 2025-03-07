@@ -1,5 +1,6 @@
 import { renderAccountSummary } from '../src/tiles/account-summary.js';
 import generateTopicsSummary from '../src/ai/model.js';
+import { getTopics } from '../src/github/topics.js';
 
 export default async (req, res) => {
     const {
