@@ -1,6 +1,6 @@
 import Tile from "../common/Tile.js";
 
-const renderAccountSummary = (text) => {
+const renderAccountSummary = (text, background) => {
     let tile = new Tile(540, 960);
     tile.setCss(`
         .account-summary-text {
@@ -8,6 +8,7 @@ const renderAccountSummary = (text) => {
             text-align: center;
         }
     `);
+    tile.setBackground(background);
 
     return tile.render(`
         <svg>

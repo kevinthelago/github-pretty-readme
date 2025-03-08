@@ -1,10 +1,12 @@
 import { renderAccountSummary } from '../src/tiles/account-summary.js';
 import generateTopicsSummary from '../src/ai/model.js';
 import { getRepos } from '../src/github/repos.js';
+import renderCherryBlossom from '../src/backgrounds/cherry-blossom.js';
 
 export default async (req, res) => {
     const {
-        username
+        username,
+        background
     } = req.query;
 
     res.setHeader("Content-Type", "image/svg+xml");
@@ -15,10 +17,13 @@ export default async (req, res) => {
     let repos = await getRepos(username);
     let topics = repos.map(repo => repo.topics).filter(arr => arr.length > 0);
     let text = await generateTopicsSummary(topics);
+    let backgrounds = {
+        'cherry-blossom': renderCherryBlossom
+    }
 
     try {
         return res.send(
-            renderAccountSummary(text)
+            renderAccountSummary(text, backgrounds[background] || undefined)
         )
     } catch (err) {
         return res.send(

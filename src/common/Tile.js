@@ -12,6 +12,10 @@ class Tile {
         this.css = value;
     }
 
+    setBackground(background) {
+        this.background = background
+    }
+
     render(body) {
         return `
             <svg
@@ -23,7 +27,7 @@ class Tile {
                     ${this.css}
                 </style>
                 <g>
-                    ${body}
+                    ${this.background ? background(body) : body}
                 </g>
             </svg>
         `

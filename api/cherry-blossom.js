@@ -1,4 +1,4 @@
-import { renderCherryBlossom } from '../src/tiles/cherry-blossom.js';
+import { renderCherryBlossom } from '../src/backgrounds/cherry-blossom.js';
 
 export default async (req, res) => {
     res.setHeader("Content-Type", "image/svg+xml");
