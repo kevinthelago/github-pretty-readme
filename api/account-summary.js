@@ -1,6 +1,6 @@
 import { renderAccountSummary } from '../src/tiles/account-summary.js';
 import generateTopicsSummary from '../src/ai/model.js';
-import { getTopics } from '../src/github/topics.js';
+import { getRepos } from '../src/github/repos.js';
 
 export default async (req, res) => {
     const {
@@ -12,7 +12,8 @@ export default async (req, res) => {
     //     "Cache-Control",
     //     `max-age=${cacheSeconds}, s-maxage=${cacheSeconds}, stale-while-revalidate=${CONSTANTS.ONE_DAY}`,
     // );
-    let topics = await getTopics(username);
+    let repos = await getRepos(username);
+    let topics = repos.map(repo => repo.topics).filter(arr => arr.length > 0);
     let text = await generateTopicsSummary(topics);
 
     try {
