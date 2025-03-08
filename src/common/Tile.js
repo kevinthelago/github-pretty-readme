@@ -1,8 +1,7 @@
 class Tile {
     constructor({
         height = 540,
-        width = 960,
-        css = ""
+        width = 960
     }) {
         this.height = height;
         this.width = width;

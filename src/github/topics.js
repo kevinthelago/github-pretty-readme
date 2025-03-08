@@ -8,7 +8,7 @@ const octokit = new App({
     privateKey: githubPrivateKey
 });
 
-const getTopics = (username) => {
+const getTopics = (username, apiKey) => {
     console.log(`GET /users/${username}/repos`)
     octokit.octokit.request(`GET /users/${username}/repos`)
         .then(data => {

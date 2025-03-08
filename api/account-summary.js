@@ -23,11 +23,5 @@ export default async (req, res) => {
         return res.send(
             err.message
         )
-        // return res.send(
-        //     renderError(
-        //         err.message,
-        //         err.secondaryMessage
-        //     )
-        // )
     }
 }
