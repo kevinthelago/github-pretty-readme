@@ -9,7 +9,15 @@ const octokit = new App({
 });
 
 const getTopics = (username) => {
-    return ["javascript", "node-js", "express-js", "generative-ai", "google-gemini"]
+    console.log(`GET /users/${username}/repos`)
+    octokit.octokit.request(`GET /users/${username}/repos`)
+        .then(data => {
+            console.log(data);
+        })
+    // return octokit.octokit.rest.repos.getAllTopics({
+    //     username
+    // })
+    // return ["javascript", "node-js", "express-js", "generative-ai", "google-gemini"]
 };
 
 export { getTopics };

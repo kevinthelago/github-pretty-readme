@@ -3,7 +3,10 @@ import Tile from "../common/Tile.js";
 const renderAccountSummary = (text) => {
     let tile = new Tile(540, 960);
     tile.setCss(`
-
+        .account-summary-text {
+            font-family: arial;
+            text-align: center;
+        }
     `);
 
     return tile.render(`

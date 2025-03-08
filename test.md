@@ -1,4 +1,3 @@
 # Test
 
-<img src="./test.svg"/>
-
+![test](./test.svg)
