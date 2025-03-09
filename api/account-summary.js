@@ -1,7 +1,7 @@
 import { renderAccountSummary } from '../src/tiles/account-summary.js';
 import generateTopicsSummary from '../src/ai/model.js';
 import { getRepos } from '../src/github/repos.js';
-import renderCherryBlossom from '../src/backgrounds/cherry-blossom.js';
+import { renderCherryBlossom } from '../src/backgrounds/cherry-blossom.js';
 
 export default async (req, res) => {
     const {

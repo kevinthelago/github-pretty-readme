@@ -6,6 +6,7 @@ class Tile {
         this.height = height;
         this.width = width;
         this.css = "";
+        this.background = {};
     }
 
     setCss(value) {
@@ -27,7 +28,7 @@ class Tile {
                     ${this.css}
                 </style>
                 <g>
-                    ${this.background ? background(body) : body}
+                    ${this.background ? this.background(body) : body}
                 </g>
             </svg>
         `
