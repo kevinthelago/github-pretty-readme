@@ -2,6 +2,7 @@ import { renderAccountSummary } from '../src/tiles/account-summary.js';
 import generateTopicsSummary from '../src/ai/model.js';
 import { getRepos } from '../src/github/repos.js';
 import { renderCherryBlossom } from '../src/backgrounds/cherry-blossom.js';
+import { renderGeometric } from '../src/backgrounds/geometric.js';
 
 export default async (req, res) => {
     const {
@@ -18,7 +19,8 @@ export default async (req, res) => {
     let topics = repos.map(repo => repo.topics).filter(arr => arr.length > 0);
     let text = await generateTopicsSummary(topics);
     let backgrounds = {
-        'cherry-blossom': renderCherryBlossom
+        'cherry-blossom': renderCherryBlossom,
+        'geometric': renderGeometric
     }
 
     try {

@@ -3,7 +3,7 @@ import { renderReadme } from '../src/markdown/respository';
 export default async (req, res) => {
     const {
         username,
-        repo
+        repository
     } = req.query;
 
     try {

@@ -28,7 +28,7 @@ class Tile {
                     ${this.css}
                 </style>
                 <g>
-                    ${this.background ? this.background(body) : body}
+                    ${this.background ? this.background(body, {height: this.height, width: this.width}) : body}
                 </g>
             </svg>
         `

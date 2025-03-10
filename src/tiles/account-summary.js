@@ -1,20 +1,28 @@
 import Tile from "../common/Tile.js";
 
 const renderAccountSummary = (text, background) => {
-    let tile = new Tile(540, 960);
+    const height = 540;
+    const width = 960;
+    const fontSize = 28;
+    let tile = new Tile(height, width);
     tile.setCss(`
-        .account-summary-text {
-            font-family: arial;
-            text-align: center;
-        }
+        .account-summary-text { font-family: arial; text-align: center;}
     `);
     tile.setBackground(background);
 
     return tile.render(`
-        <svg>
-            <text class='account-summary-text'>
-                ${text}
-            </text>
+        <svg
+            height="${height}"
+            width="${width}"
+            viewBox="0 0 ${width} ${height}"
+        >
+            ${text.split("\n").map((line, index) => {
+                return (`
+                    <text y="${(index + 1) * fontSize}" class='account-summary-text' height="100%">
+                        ${line}
+                    </text>
+                `)
+            }).join("")}
         </svg>
     `);
 }

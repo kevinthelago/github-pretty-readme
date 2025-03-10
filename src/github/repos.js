@@ -6,9 +6,21 @@ const getRepos = (username) => {
             return data.data;
         })
         .catch(err => {
-            return err;
+            console.error(err);
+            return null;
         });
 };
 
-export { getRepos };
+const getContents = (username, repository, path) => {
+    return axios.get(`https://api.github.com/repos/${username}/${repository}/contents/${path}`)
+        .then(data => {
+            return data.data
+        })
+        .catch(err => {
+            console.error(err);
+            return null;
+        })
+}
+
+export { getRepos, getContents };
 export default getRepos;
