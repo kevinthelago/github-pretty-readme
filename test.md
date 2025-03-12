@@ -1,0 +1,1 @@
+<img src="localhost:3000/account-summary?username=kevinthelago&background=geometric"/>
