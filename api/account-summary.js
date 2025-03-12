@@ -10,7 +10,7 @@ export default async (req, res) => {
         background
     } = req.query;
 
-    res.setHeader("Content-Type", "image/svg+xml");
+    // res.setHeader("Content-Type", "image/svg+xml");
     // res.setHeader(
     //     "Cache-Control",
     //     `max-age=${cacheSeconds}, s-maxage=${cacheSeconds}, stale-while-revalidate=${CONSTANTS.ONE_DAY}`,

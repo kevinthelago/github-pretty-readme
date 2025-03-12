@@ -13,7 +13,7 @@
   },
   "type": "module",
   "scripts": {
-    "start": "node express.js",
+    "start": "node --env-file=.env express.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   }
 }
