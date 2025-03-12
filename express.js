@@ -4,7 +4,7 @@ import express from 'express';
 
 // const express = require('express');
 const app = express();
-app.listen(process.env.port || 3000);
+app.listen(process.env.PORT || 8080);
 
 app.get('/account-summary', accountSummary);
 // app.get('/repository-readme', repositoryReadme);
