@@ -39,7 +39,7 @@ const renderAccountSummary = (text, background) => {
                 let chunks = chunkText(line, maxLength);
                 return chunks.map((chunk, j) => {
                     return(`
-                        <text y="${(1 + (chunks.length * i) + j) * fontSize}" class='account-summary-text' height="100%">
+                        <text x="${width / 2}" y="${(1 + (chunks.length * i) + j) * fontSize}" text-anchor='middle' class='account-summary-text' height="100%">
                             ${chunk}
                         </text>
                     `)
