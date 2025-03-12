@@ -4,8 +4,8 @@ import express from 'express';
 
 // const express = require('express');
 const app = express();
-var port = normalizePort(process.env.PORT || 8080);
-app.set("port", 8080)
+var port = normalizePort(process.env.PORT || '8080');
+app.set("port", port)
 // app.listen(process.env.PORT || 8080);
 
 app.get('/account-summary', accountSummary);
