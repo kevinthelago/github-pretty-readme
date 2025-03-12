@@ -1,10 +1,10 @@
-var createError = require("http-errors");
-var express = require("express");
-var mongoose = require("mongoose");
-var path = require("path");
-var cookieParser = require("cookie-parser");
-var logger = require("morgan");
-const { format } = require("date-fns");
+import createError from "http-errors";
+import express from "express";
+import path from "path";
+import cookieParser from "cookie-parser";
+
+// var logger = require("morgan");
+// const { format } = require("date-fns");
 
 // 1st party dependencies
 var indexRouter = require("./routes/index");
