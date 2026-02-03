@@ -1,13 +1,27 @@
 class Readme {
     constructor({
-        title = ""
+        title = "",
+        tiles = []
     }) {
         this.title = title
+        this.tiles = tiles
     }
 
-    render() {
+    renderSummary() {
+
+    }
+
+    renderLanguages() {
+
+    }
+
+    render(badges, hero) {
         return `
-        
+            ${badges}
+            
+            # ${title}
+
+            ${hero}
         `
     }
 }

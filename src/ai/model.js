@@ -5,8 +5,9 @@ const prompt = process.env.AI_PROMPT;
 const genAI = new GoogleGenerativeAI(googleAIStudioKey);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-const generateTopicsSummary = (topics) => {
-    return model.generateContent(prompt + JSON.stringify(topics))
+const generateTopicsSummary = (test) => {
+    // console.log(prompt.replace(/\{topics\}/g) + JSON.stringify(test));
+    return model.generateContent(prompt.replace(/\{topics\}/g) + JSON.stringify(test))
         .then(data => {
             return data.response.text();
         })

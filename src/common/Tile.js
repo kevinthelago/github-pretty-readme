@@ -30,7 +30,10 @@ class Tile {
                     ${this.css}
                 </style>
                 <g>
-                    ${this.background ? this.background(body, {height: this.height, width: this.width}) : body}
+                    ${this.background ? this.background(this.height, this.width) : ""}
+                </g>
+                <g>
+                    ${body}
                 </g>
             </svg>
         `

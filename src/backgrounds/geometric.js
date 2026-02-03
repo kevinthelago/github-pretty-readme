@@ -1,6 +1,4 @@
-const renderGeometric = (body, properties) => {
-    const { height, width } = properties;
-
+const renderGeometric = (height, width) => {
     return `
         <svg 
             height="${height}"
@@ -17,8 +15,6 @@ const renderGeometric = (body, properties) => {
                 </div>
             </foreignObject>
             <g fill="white">
-                ${body}
-            </g>
         </svg>
     `
 }

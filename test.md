@@ -1,1 +1,1 @@
-<img src="localhost:3000/account-summary?username=kevinthelago&background=geometric"/>
+<img src="http://localhost:8080/account-summary?username=kevinthelago&background=vapor-wave"/>

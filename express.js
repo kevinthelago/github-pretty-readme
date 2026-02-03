@@ -6,4 +6,3 @@ const app = express();
 app.listen(process.env.port || 8080);
 
 app.get('/account-summary', accountSummary);
-
