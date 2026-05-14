@@ -21,16 +21,8 @@ jobs:
         env:
           GOOGLE_AI_STUDIO_KEY: ${{ secrets.GOOGLE_AI_STUDIO_KEY }}
         run: |
-          node --input-type=module <<'EOF'
-          import { GoogleGenerativeAI } from '@google/generative-ai';
-          const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
-          const models = await genAI.listModels();
-          for await (const m of models) {
-            if (m.supportedGenerationMethods?.includes('generateContent')) {
-              console.log(m.name);
-            }
-          }
-          EOF
+          curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=$GOOGLE_AI_STUDIO_KEY" \
+            | grep -o '"name":"[^"]*"' | grep -i gemini
 
       - name: Start server
         env:
