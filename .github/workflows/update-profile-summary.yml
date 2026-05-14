@@ -23,14 +23,17 @@ jobs:
           AI_PROMPT: ${{ secrets.AI_PROMPT }}
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           port: 8080
-        run: node express.js &
+        run: node express.js > /tmp/server.log 2>&1 &
 
       - name: Wait for server
         run: |
-          for i in $(seq 1 15); do
-            curl -sf "http://localhost:8080/account-summary?username=kevinthelago" > /dev/null && break
+          for i in $(seq 1 20); do
+            curl -sf "http://localhost:8080/account-summary?username=kevinthelago" > /dev/null && echo "Server ready" && break
             sleep 2
           done
+          echo "=== Server log ==="
+          cat /tmp/server.log || true
+          curl -sf "http://localhost:8080/account-summary?username=kevinthelago" > /dev/null || (echo "Server never started" && exit 1)
 
       - name: Fetch account summary SVG
         run: |
