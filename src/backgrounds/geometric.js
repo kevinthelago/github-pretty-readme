@@ -15,6 +15,7 @@ const renderGeometric = (height, width) => {
                 </div>
             </foreignObject>
             <g fill="white">
+            </g>
         </svg>
     `
 }

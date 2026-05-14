@@ -42,7 +42,7 @@ jobs:
 
       - name: Fetch tech summary SVG
         run: |
-          curl -f "http://localhost:8080/tech-summary?background=geometric&sort=frequency" \
+          curl -f "http://localhost:8080/tech-summary?background=cherry-blossom&sort=frequency" \
             -o tech-summary.svg
 
       - name: Push SVGs to profile repo
