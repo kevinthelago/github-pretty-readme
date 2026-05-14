@@ -26,17 +26,15 @@ export default async (req, res) => {
 
     res.setHeader("Content-Type", "image/svg+xml");
 
-    let repos = await getRepos(username);
-    repos = filterRepos(repos, projects);
-
-    let repoData = repos.map(repo => Object.fromEntries([["name", repo.name], ["description", repo.description], ["topics", repo.topics]]));
-    let summary = await generateAccountSummary(repoData);
-
     try {
-        return res.send(
-            renderAccountSummary(summary, backgrounds[background])
-        )
+        let repos = await getRepos(username);
+        repos = filterRepos(repos, projects);
+
+        let repoData = repos.map(repo => Object.fromEntries([["name", repo.name], ["description", repo.description], ["topics", repo.topics]]));
+        let summary = await generateAccountSummary(repoData);
+
+        return res.send(renderAccountSummary(summary, backgrounds[background]));
     } catch (err) {
-        return res.send(err.message)
+        return res.send(err.message);
     }
 }
