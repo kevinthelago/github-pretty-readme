@@ -17,12 +17,6 @@ jobs:
 
       - run: npm install
 
-      - name: List available Gemini models
-        env:
-          GOOGLE_AI_STUDIO_KEY: ${{ secrets.GOOGLE_AI_STUDIO_KEY }}
-        run: |
-          curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=$GOOGLE_AI_STUDIO_KEY"
-
       - name: Start server
         env:
           GOOGLE_AI_STUDIO_KEY: ${{ secrets.GOOGLE_AI_STUDIO_KEY }}
