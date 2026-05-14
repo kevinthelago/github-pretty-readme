@@ -1,0 +1,71 @@
+name: Update profile summary
+
+on:
+  schedule:
+    - cron: '0 * * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - run: npm install
+
+      - name: Start server
+        env:
+          GOOGLE_AI_STUDIO_KEY: ${{ secrets.GOOGLE_AI_STUDIO_KEY }}
+          AI_PROMPT: ${{ secrets.AI_PROMPT }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          port: 8080
+        run: node express.js &
+
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 15); do
+            curl -sf "http://localhost:8080/account-summary?username=kevinthelago" > /dev/null && break
+            sleep 2
+          done
+
+      - name: Fetch account summary SVG
+        run: |
+          curl -f "http://localhost:8080/account-summary?username=kevinthelago&background=cherry-blossom" \
+            -o account-summary.svg
+
+      - name: Fetch tech summary SVG
+        run: |
+          curl -f "http://localhost:8080/tech-summary?background=geometric&sort=frequency" \
+            -o tech-summary.svg
+
+      - name: Push SVGs to profile repo
+        env:
+          GH_TOKEN: ${{ secrets.PROFILE_REPO_TOKEN }}
+        run: |
+          push_svg() {
+            local file=$1
+            local dest=$2
+            local sha
+            sha=$(gh api "repos/kevinthelago/kevinthelago/contents/${dest}" --jq '.sha' 2>/dev/null || echo "")
+            local content
+            content=$(base64 -w 0 "$file")
+            if [ -n "$sha" ]; then
+              gh api "repos/kevinthelago/kevinthelago/contents/${dest}" \
+                --method PUT \
+                -f message="chore: update ${dest}" \
+                -f content="$content" \
+                -f sha="$sha"
+            else
+              gh api "repos/kevinthelago/kevinthelago/contents/${dest}" \
+                --method PUT \
+                -f message="chore: update ${dest}" \
+                -f content="$content"
+            fi
+          }
+
+          push_svg account-summary.svg assets/account-summary.svg
+          push_svg tech-summary.svg assets/tech-summary.svg

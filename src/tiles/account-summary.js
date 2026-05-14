@@ -1,5 +1,4 @@
 import Tile from "../common/Tile.js";
-import Readme from "../common/Readme.js";
 
 const chunkText = (text, length) => {
     const words = text.split(/\s+/);
@@ -15,22 +14,20 @@ const chunkText = (text, length) => {
         }
     })
 
-    chunks.filter(chunk => chunk.length > 0);
+    chunks = chunks.filter(chunk => chunk.length > 0);
     return chunks;
 }
 
-const renderAccountSummary = (summary, background, projects) => {
+const renderAccountSummary = (summary, background) => {
     const height = 540;
     const width = 960;
     const fontSize = 28;
     const maxLength = 100;
-    let readme = new Readme(summary, background, projects);
-    let tile = new Tile(height, width);
+    let tile = new Tile({ height, width });
     tile.setCss(`
         .account-summary-text { font-family: arial; text-align: center;}
     `);
     tile.setBackground(background);
-    let title = "test title"
 
     return(`
         ${tile.render(`
@@ -49,29 +46,9 @@ const renderAccountSummary = (summary, background, projects) => {
                         `)
                     })
                 }).join("")}
-            </svg>    
+            </svg>
         `)}
     `)
-    
-    
-    // tile.render(`
-    //     <svg
-    //         height="${height}"
-    //         width="${width}"
-    //         viewBox="0 0 ${width} ${height}"
-    //     >
-    //         ${text.split("\n").map((line, i) => {
-    //             let chunks = chunkText(line, maxLength);
-    //             return chunks.map((chunk, j) => {
-    //                 return(`
-    //                     <text x="${width / 2}" y="${(1 + (chunks.length * i) + j) * fontSize}" text-anchor='middle' class='account-summary-text' height="100%">
-    //                         ${chunk}
-    //                     </text>
-    //                 `)
-    //             })
-    //         }).join("")}
-    //     </svg>
-    // `);
 }
 
 export { renderAccountSummary };

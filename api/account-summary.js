@@ -5,38 +5,38 @@ import { renderCherryBlossom } from '../src/backgrounds/cherry-blossom.js';
 import { renderGeometric } from '../src/backgrounds/geometric.js';
 import { renderVaporWave } from '../src/backgrounds/vapor-wave.js';
 
+const backgrounds = {
+    'cherry-blossom': renderCherryBlossom,
+    'geometric': renderGeometric,
+    'vapor-wave': renderVaporWave,
+};
+
+const filterRepos = (repos, projects) => {
+    if (!projects) return repos;
+    if (/^\d+$/.test(projects)) {
+        const n = parseInt(projects, 10);
+        return [...repos].sort((a, b) => b.stargazers_count - a.stargazers_count).slice(0, n);
+    }
+    const names = projects.split(",").map(s => s.trim());
+    return repos.filter(repo => names.includes(repo.name));
+};
+
 export default async (req, res) => {
-    const {
-        username,
-        theme,
-        projects,
-        effects
-    } = req.query;
+    const { username, background, projects, effects } = req.query;
 
     res.setHeader("Content-Type", "image/svg+xml");
-    // res.setHeader(
-    //     "Cache-Control",
-    //     `max-age=${cacheSeconds}, s-maxage=${cacheSeconds}, stale-while-revalidate=${CONSTANTS.ONE_DAY}`,
-    // );
+
     let repos = await getRepos(username);
-    // let topics = repos.map(repo => repo.topics).filter(arr => arr.length > 0);
-    // let languages = repos.map(repo => repo.language).filter(language => language.length > 0);
-    // let namesAndDesriptions = repos.map(repo => {repo.name, repo.description});
-    let test = repos.map(repo => Object.fromEntries([["name", repo.name], ["description", repo.description], ["topics", repo.topics]]));
-    let summary = await generateAccountSummary(test);
-    let themes = {
-        'cherry-blossom': renderCherryBlossom,
-        'geometric': renderGeometric,
-        'vapor-wave': renderVaporWave
-    }
+    repos = filterRepos(repos, projects);
+
+    let repoData = repos.map(repo => Object.fromEntries([["name", repo.name], ["description", repo.description], ["topics", repo.topics]]));
+    let summary = await generateAccountSummary(repoData);
 
     try {
         return res.send(
-            renderAccountSummary(summary, themes[theme] || undefined)
+            renderAccountSummary(summary, backgrounds[background])
         )
     } catch (err) {
-        return res.send(
-            err.message
-        )
+        return res.send(err.message)
     }
 }

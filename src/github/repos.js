@@ -22,5 +22,25 @@ const getContents = (username, repository, path) => {
         })
 }
 
-export { getRepos, getContents };
+const getAllRepos = async () => {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) return null;
+
+    const repos = [];
+    let page = 1;
+
+    while (true) {
+        const response = await axios.get('https://api.github.com/user/repos', {
+            headers: { Authorization: `Bearer ${token}` },
+            params: { visibility: 'all', affiliation: 'owner', per_page: 100, page },
+        });
+        repos.push(...response.data);
+        if (response.data.length < 100) break;
+        page++;
+    }
+
+    return repos;
+};
+
+export { getRepos, getContents, getAllRepos };
 export default getRepos;
