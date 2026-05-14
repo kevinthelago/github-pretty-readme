@@ -44,6 +44,12 @@ jobs:
         run: |
           curl -f "http://localhost:8080/tech-chart?chart=spider" -o tech-chart.svg
 
+      - name: Update tech badges in profile README
+        env:
+          PROFILE_REPO_TOKEN: ${{ secrets.PROFILE_REPO_TOKEN }}
+          port: 8080
+        run: node scripts/update-readme-tech.mjs kevinthelago
+
       - name: Push SVGs to profile repo
         env:
           GH_TOKEN: ${{ secrets.PROFILE_REPO_TOKEN }}
