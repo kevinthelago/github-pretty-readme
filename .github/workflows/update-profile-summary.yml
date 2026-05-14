@@ -40,9 +40,9 @@ jobs:
           curl -f "http://localhost:8080/account-summary?username=kevinthelago&background=cherry-blossom" \
             -o account-summary.svg
 
-      - name: Fetch tech chart SVG
+      - name: Fetch tech spider SVG
         run: |
-          curl -f "http://localhost:8080/tech-chart?chart=spider" -o tech-chart.svg
+          curl -f "http://localhost:8080/tech-spider?categories=languages,frameworks,cloud&limit=6" -o tech-chart.svg
 
       - name: Update tech badges in profile README
         env:
