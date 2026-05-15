@@ -15,6 +15,7 @@
   },
   "type": "module",
   "scripts": {
-    "start": "node --env-file=.env express.js"
+    "start": "node --env-file=.env express.js",
+    "preview": "node scripts/preview.mjs"
   }
 }
