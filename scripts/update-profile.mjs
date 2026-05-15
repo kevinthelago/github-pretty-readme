@@ -60,15 +60,34 @@ const pushAsset = async (filePath, content) => {
 
 // ── Marker injection ─────────────────────────────────────────────────────────
 
-/**
- * Returns updated content with section injected between start/end markers.
- * Returns null if either marker is missing (caller should warn and skip).
- */
 const inject = (content, start, end, section) => {
     const si = content.indexOf(start);
     const ei = content.indexOf(end);
     if (si === -1 || ei === -1) return null;
     return content.slice(0, si + start.length) + section + content.slice(ei);
+};
+
+/**
+ * Ensures both marker pairs exist in the README, inserting them if absent.
+ * Chart markers are placed before the badge section; badge markers appended at end.
+ * Returns the (possibly modified) README string.
+ */
+const ensureMarkers = (content) => {
+    let out = content;
+
+    if (!out.includes(BADGE_START)) {
+        out += `\n${BADGE_START}${BADGE_END}\n`;
+        console.log('  ✓  Inserted badge markers');
+    }
+
+    if (!out.includes(CHART_START)) {
+        const badgeIdx = out.indexOf(BADGE_START);
+        const block = `${CHART_START}${CHART_END}\n\n`;
+        out = out.slice(0, badgeIdx) + block + out.slice(badgeIdx);
+        console.log('  ✓  Inserted chart markers');
+    }
+
+    return out;
 };
 
 // ── Badge builder ────────────────────────────────────────────────────────────
@@ -138,23 +157,14 @@ const buildBadge = ({ language, slug, hex }) => {
     const { content: b64, sha } = await getFile(README_PATH);
     let readme = Buffer.from(b64, 'base64').toString('utf8');
 
+    readme = ensureMarkers(readme);
+
     const chartImgs = charts
         .map(c => `<img src="./assets/tech-${c.category}.svg" width="600" height="600" alt="${c.label}" />`)
         .join('\n\n');
 
-    const withCharts = inject(readme, CHART_START, CHART_END, '\n' + chartImgs + '\n');
-    if (withCharts === null) {
-        console.warn(`  ⚠  Chart markers not found — add ${CHART_START}${CHART_END} to ${REPO} README`);
-    } else {
-        readme = withCharts;
-    }
-
-    const withBadges = inject(readme, BADGE_START, BADGE_END, '\n' + badges + '\n');
-    if (withBadges === null) {
-        console.warn(`  ⚠  Badge markers not found — add ${BADGE_START}${BADGE_END} to ${REPO} README`);
-    } else {
-        readme = withBadges;
-    }
+    readme = inject(readme, CHART_START, CHART_END, '\n' + chartImgs + '\n');
+    readme = inject(readme, BADGE_START, BADGE_END, '\n' + badges + '\n');
 
     await putFile(README_PATH, readme, sha, 'chore: update tech charts and badges');
     console.log('  ✓  README.md');
