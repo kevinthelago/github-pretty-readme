@@ -26,6 +26,7 @@ export default async (req, res) => {
         categories: categoriesParam = 'languages,frameworks,cloud',
         limit: limitParam = '6',
         exclude: excludeParam = '',
+        title,
     } = req.query;
 
     res.setHeader('Content-Type', 'image/svg+xml');
@@ -43,7 +44,7 @@ export default async (req, res) => {
         const series = buildTechSeries(repos, requestedCategories, limit, excluded);
         if (series.length === 0) return res.status(400).send('No data for requested categories');
 
-        return res.send(render(series));
+        return res.send(render(series, title));
     } catch (err) {
         return res.send(err.message);
     }

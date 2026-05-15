@@ -66,6 +66,7 @@ const buildTechSeries = (repos, requestedCategories, limit, excluded) => {
     return requestedCategories
         .filter(cat => categoryData[cat]?.length > 0)
         .map(cat => ({
+            key: cat,
             label: CATEGORY_META[cat]?.label ?? cat,
             color: CATEGORY_META[cat]?.color ?? '#ffffff',
             techs: categoryData[cat],

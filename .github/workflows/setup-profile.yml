@@ -1,0 +1,21 @@
+name: Setup profile README markers
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - run: npm install
+
+      - name: Insert markers into profile README
+        env:
+          PROFILE_REPO_TOKEN: ${{ secrets.PROFILE_REPO_TOKEN }}
+        run: node scripts/setup-profile.mjs kevinthelago

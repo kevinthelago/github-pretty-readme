@@ -35,45 +35,8 @@ jobs:
           cat /tmp/server.log || true
           curl -sf "http://localhost:8080/account-summary?username=kevinthelago" > /dev/null || (echo "Server never started" && exit 1)
 
-      - name: Fetch account summary SVG
-        run: |
-          curl -f "http://localhost:8080/account-summary?username=kevinthelago&background=cherry-blossom" \
-            -o account-summary.svg
-
-      - name: Fetch tech spider SVG
-        run: |
-          curl -f "http://localhost:8080/tech-spider?categories=languages,frameworks,cloud&limit=6" -o tech-chart.svg
-
-      - name: Update tech badges in profile README
+      - name: Update profile README
         env:
           PROFILE_REPO_TOKEN: ${{ secrets.PROFILE_REPO_TOKEN }}
           port: 8080
-        run: node scripts/update-readme-tech.mjs kevinthelago
-
-      - name: Push SVGs to profile repo
-        env:
-          GH_TOKEN: ${{ secrets.PROFILE_REPO_TOKEN }}
-        run: |
-          push_svg() {
-            local file=$1
-            local dest=$2
-            local sha
-            sha=$(gh api "repos/kevinthelago/kevinthelago/contents/${dest}" --jq '.sha' 2>/dev/null || echo "")
-            local content
-            content=$(base64 -w 0 "$file")
-            if [ -n "$sha" ]; then
-              gh api "repos/kevinthelago/kevinthelago/contents/${dest}" \
-                --method PUT \
-                -f message="chore: update ${dest}" \
-                -f content="$content" \
-                -f sha="$sha"
-            else
-              gh api "repos/kevinthelago/kevinthelago/contents/${dest}" \
-                --method PUT \
-                -f message="chore: update ${dest}" \
-                -f content="$content"
-            fi
-          }
-
-          push_svg account-summary.svg assets/account-summary.svg
-          push_svg tech-chart.svg assets/tech-chart.svg
+        run: node scripts/update-profile.mjs kevinthelago

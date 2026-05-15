@@ -12,10 +12,9 @@ const iconEl = (lang, x, y, size) => {
  * Renders a multi-polygon spider/radar chart.
  *
  * @param {Array<{ label: string, color: string, techs: Array<{ name, count, icon, hex }> }>} series
- *   Each entry becomes one colored polygon. Axes are the union of all techs across all series.
- *   Each series is normalized to its own max so visually comparable even with different scales.
+ * @param {string} [title]  Chart title shown at the top (default: 'TECH RADAR')
  */
-const renderTechSpider = (series) => {
+const renderTechSpider = (series, title = 'TECH RADAR') => {
     const W = 800, H = 800;
     const cx = W / 2, cy = H / 2 + 10;
     const R = 210;
@@ -115,7 +114,7 @@ const renderTechSpider = (series) => {
         </linearGradient>
     </defs>
     <rect width="${W}" height="${H}" fill="url(#ts-bg)" rx="12"/>
-    <text x="${W / 2}" y="44" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="17" font-weight="bold" letter-spacing="4" font-family="Arial, sans-serif">TECH RADAR</text>
+    <text x="${W / 2}" y="44" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="17" font-weight="bold" letter-spacing="4" font-family="Arial, sans-serif">${title.toUpperCase()}</text>
     <line x1="${W / 2 - 90}" y1="58" x2="${W / 2 + 90}" y2="58" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
     ${gridRings}
     ${spokes}

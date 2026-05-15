@@ -3,6 +3,7 @@ import techSummary from './api/tech-summary.js';
 import techList from './api/tech-list.js';
 import techChart from './api/tech-chart.js';
 import techSpider from './api/tech-spider.js';
+import techCategories from './api/tech-categories.js';
 import express from 'express';
 
 const app = express();
@@ -13,3 +14,4 @@ app.get('/tech-summary', techSummary);
 app.get('/tech-list', techList);
 app.get('/tech-chart', techChart);
 app.get('/tech-spider', techSpider);
+app.get('/tech-categories', techCategories);
