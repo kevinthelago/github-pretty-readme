@@ -16,6 +16,7 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file=.env express.js",
-    "preview": "node scripts/preview.mjs"
+    "preview": "node scripts/preview.mjs",
+    "docs": "node --env-file=.env scripts/update-readme.mjs"
   }
 }
