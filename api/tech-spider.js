@@ -1,6 +1,7 @@
 import { renderTechSpider } from '../src/tiles/tech-spider.js';
 import { renderTechTreemap } from '../src/tiles/tech-treemap.js';
 import { renderTechCards } from '../src/tiles/tech-cards.js';
+import { renderTechGrid } from '../src/tiles/tech-grid.js';
 import { getAllRepos } from '../src/github/repos.js';
 import { buildTechSeries } from '../src/github/tech-data.js';
 
@@ -8,6 +9,7 @@ const RENDERERS = {
     spider:  renderTechSpider,
     treemap: renderTechTreemap,
     cards:   renderTechCards,
+    grid:    renderTechGrid,
 };
 
 /**
@@ -26,6 +28,7 @@ export default async (req, res) => {
         categories: categoriesParam = 'languages,frameworks,cloud',
         limit: limitParam = '6',
         exclude: excludeParam = '',
+        columns: columnsParam = '2',
         title,
     } = req.query;
 
@@ -44,7 +47,8 @@ export default async (req, res) => {
         const series = buildTechSeries(repos, requestedCategories, limit, excluded);
         if (series.length === 0) return res.status(400).send('No data for requested categories');
 
-        return res.send(render(series, title));
+        const opts = { columns: Math.min(parseInt(columnsParam, 10) || 2, 4) };
+        return res.send(render(series, title, opts));
     } catch (err) {
         return res.send(err.message);
     }

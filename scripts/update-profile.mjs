@@ -147,25 +147,22 @@ const SECTIONS = [
             const chartable = categories.filter(c => c.count >= MIN_TECHS_FOR_CHART);
             console.log(`  Found ${categories.length} categories, ${chartable.length} chartable`);
 
-            console.log('\nFetching category charts…');
-            const charts = [];
-            for (const cat of chartable) {
-                const url = `${BASE}/tech-spider?type=spider&categories=${cat.category}&limit=8&title=${encodeURIComponent(cat.label)}`;
-                const res = await fetch(url);
-                if (!res.ok) { console.log(`  ✗  ${cat.category} (${res.status})`); continue; }
-                charts.push({ ...cat, svg: await res.text() });
-                console.log(`  ✓  ${cat.category} (${cat.count} techs)`);
-            }
+            if (chartable.length === 0) return '\n_No tech data found._\n';
 
-            console.log('\nPushing chart assets…');
-            for (const chart of charts) {
-                await pushAsset(`assets/tech-${chart.category}.svg`, chart.svg);
-            }
+            const categoryList = chartable.map(c => c.category).join(',');
+            const columns = Math.min(chartable.length, 2);
+            const url = `${BASE}/tech-spider?type=grid&categories=${categoryList}&limit=8&columns=${columns}`;
+            console.log('\nFetching tech grid…');
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`/tech-spider?type=grid → ${res.status}`);
+            const svg = await res.text();
+            await pushAsset('assets/tech-grid.svg', svg);
+            console.log(`  ✓  tech-grid (${chartable.length} categories, ${columns} columns)`);
 
-            const imgs = charts
-                .map(c => `<img src="./assets/tech-${c.category}.svg" width="600" height="600" alt="${c.label}" />`)
-                .join('\n\n');
-            return '\n' + imgs + '\n';
+            const cellH = Math.round((800 / columns) * 1.05);
+            const rows = Math.ceil(chartable.length / columns);
+            const totalH = rows * cellH;
+            return `\n<img src="./assets/tech-grid.svg" width="800" height="${totalH}" alt="Tech Stack" />\n`;
         },
     },
     {
