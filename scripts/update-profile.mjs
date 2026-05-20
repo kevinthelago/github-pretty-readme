@@ -123,6 +123,19 @@ const SECTIONS = [
         },
     },
     {
+        key: 'rating',
+        start: '<!-- rating-start -->',
+        end: '<!-- rating-end -->',
+        async fetch() {
+            console.log('\nFetching developer rating…');
+            const res = await fetch(`${BASE}/developer-rating`);
+            if (!res.ok) throw new Error(`/developer-rating → ${res.status}`);
+            const svg = await res.text();
+            await pushAsset('assets/developer-rating.svg', svg);
+            return '\n<img src="./assets/developer-rating.svg" width="800" height="280" alt="Developer Rating" />\n';
+        },
+    },
+    {
         key: 'charts',
         start: '<!-- tech-charts-start -->',
         end: '<!-- tech-charts-end -->',
