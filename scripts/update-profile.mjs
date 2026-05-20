@@ -201,5 +201,11 @@ const SECTIONS = [
     await putFile(README_PATH, readme, sha, 'chore: update profile summary and charts');
     console.log('  ✓  README.md');
 
+    console.log('\nGenerating developer insights…');
+    const insightsRes = await fetch(`${BASE}/developer-rating-insights`);
+    if (!insightsRes.ok) throw new Error(`/developer-rating-insights → ${insightsRes.status}`);
+    const insightsMd = await insightsRes.text();
+    await pushAsset('DEVELOPER_INSIGHTS.md', insightsMd);
+
     console.log('\nDone.');
 })().catch(err => { console.error(err.message); process.exit(1); });
