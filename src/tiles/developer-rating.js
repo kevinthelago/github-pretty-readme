@@ -24,15 +24,23 @@ const BARS_TOP = 58;
 const renderDeveloperRating = (rating) => {
     const { overall, tier } = rating;
 
-    // ── Left panel: overall score + tier ──────────────────────────────────────
-    const tierBadge = `
-    <circle cx="${SCORE_W / 2}" cy="${H / 2 + 28}" r="32" fill="${tier.color}" fill-opacity="0.15" stroke="${tier.color}" stroke-width="1.5"/>
-    <text x="${SCORE_W / 2}" y="${H / 2 + 35}" text-anchor="middle" fill="${tier.color}" font-size="30" font-weight="bold" font-family="Arial, sans-serif">${tier.label}</text>`;
+    // ── Left panel: three zones — title / score / tier ────────────────────────
+    // Zone 1: title (top)
+    // Zone 2: score number + label (upper-middle)
+    // Zone 3: tier badge (lower section, below a separator)
+    const CX = SCORE_W / 2;
+    const SEPARATOR_Y = 168;
+    const TIER_CY = 218;
 
     const overallLabel = `
-    <text x="${SCORE_W / 2}" y="44" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="13" letter-spacing="3" font-family="Arial, sans-serif">DEVELOPER RATING</text>
-    <text x="${SCORE_W / 2}" y="${H / 2 - 4}" text-anchor="middle" fill="white" font-size="52" font-weight="bold" font-family="Arial, sans-serif">${overall}</text>
-    <text x="${SCORE_W / 2}" y="${H / 2 + 14}" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="11" font-family="Arial, sans-serif">out of 100</text>`;
+    <text x="${CX}" y="46" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="11" letter-spacing="3" font-family="Arial, sans-serif">DEVELOPER RATING</text>
+    <text x="${CX}" y="118" text-anchor="middle" fill="white" font-size="52" font-weight="bold" font-family="Arial, sans-serif">${overall}</text>
+    <text x="${CX}" y="140" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="11" font-family="Arial, sans-serif">out of 100</text>
+    <line x1="${CX - 28}" y1="${SEPARATOR_Y}" x2="${CX + 28}" y2="${SEPARATOR_Y}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+
+    const tierBadge = `
+    <circle cx="${CX}" cy="${TIER_CY}" r="26" fill="${tier.color}" fill-opacity="0.15" stroke="${tier.color}" stroke-width="1.5"/>
+    <text x="${CX}" y="${TIER_CY + 9}" text-anchor="middle" dominant-baseline="middle" fill="${tier.color}" font-size="26" font-weight="bold" font-family="Arial, sans-serif">${tier.label}</text>`;
 
     // Divider
     const divider = `<line x1="${SCORE_W + PAD}" y1="${PAD}" x2="${SCORE_W + PAD}" y2="${H - PAD}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
