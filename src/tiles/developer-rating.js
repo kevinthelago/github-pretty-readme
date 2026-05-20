@@ -40,7 +40,7 @@ const renderDeveloperRating = (rating) => {
 
     const tierBadge = `
     <circle cx="${CX}" cy="${TIER_CY}" r="26" fill="${tier.color}" fill-opacity="0.15" stroke="${tier.color}" stroke-width="1.5"/>
-    <text x="${CX}" y="${TIER_CY + 9}" text-anchor="middle" dominant-baseline="middle" fill="${tier.color}" font-size="26" font-weight="bold" font-family="Arial, sans-serif">${tier.label}</text>`;
+    <text x="${CX}" y="${TIER_CY}" text-anchor="middle" dominant-baseline="central" fill="${tier.color}" font-size="26" font-weight="bold" font-family="Arial, sans-serif">${tier.label}</text>`;
 
     // Divider
     const divider = `<line x1="${SCORE_W + PAD}" y1="${PAD}" x2="${SCORE_W + PAD}" y2="${H - PAD}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
