@@ -1,6 +1,6 @@
 /**
  * Dynamically updates the kevinthelago profile README with:
- *  - account-summary SVG
+ *  - plain-text Gemini-generated bio (injected as markdown)
  *  - one spider chart SVG per detected tech category
  *  - clickable shields.io tech badges
  *
@@ -23,10 +23,6 @@ const PORT = process.env.port || 8080;
 const BASE = `http://localhost:${PORT}`;
 const REPO = `${username}/${username}`;
 const README_PATH = 'README.md';
-const CHART_START = '<!-- tech-charts-start -->';
-const CHART_END = '<!-- tech-charts-end -->';
-const BADGE_START = '<!-- tech-start -->';
-const BADGE_END = '<!-- tech-end -->';
 const MIN_TECHS_FOR_CHART = 3;
 
 // ── GitHub API helpers ───────────────────────────────────────────────────────
@@ -63,30 +59,30 @@ const pushAsset = async (filePath, content) => {
 const inject = (content, start, end, section) => {
     const si = content.indexOf(start);
     const ei = content.indexOf(end);
-    if (si === -1 || ei === -1) return null;
+    if (si === -1 || ei === -1) return content; // ensureMarkers already ran; should never happen
     return content.slice(0, si + start.length) + section + content.slice(ei);
 };
 
 /**
- * Ensures both marker pairs exist in the README, inserting them if absent.
- * Chart markers are placed before the badge section; badge markers appended at end.
- * Returns the (possibly modified) README string.
+ * Ensures all section markers exist in the README, inserting them in order
+ * if absent. Each missing section is inserted before the next one (or appended).
  */
-const ensureMarkers = (content) => {
+const ensureMarkers = (content, sections) => {
     let out = content;
+    for (let i = 0; i < sections.length; i++) {
+        const { start, end } = sections[i];
+        if (out.includes(start)) continue;
 
-    if (!out.includes(BADGE_START)) {
-        out += `\n${BADGE_START}${BADGE_END}\n`;
-        console.log('  ✓  Inserted badge markers');
+        const block = `${start}${end}\n`;
+        const nextMarker = sections.slice(i + 1).map(s => s.start).find(m => out.includes(m));
+        if (nextMarker) {
+            const idx = out.indexOf(nextMarker);
+            out = out.slice(0, idx) + block + '\n' + out.slice(idx);
+        } else {
+            out += '\n' + block;
+        }
+        console.log(`  ✓  Inserted ${start} markers`);
     }
-
-    if (!out.includes(CHART_START)) {
-        const badgeIdx = out.indexOf(BADGE_START);
-        const block = `${CHART_START}${CHART_END}\n\n`;
-        out = out.slice(0, badgeIdx) + block + out.slice(badgeIdx);
-        console.log('  ✓  Inserted chart markers');
-    }
-
     return out;
 };
 
@@ -110,63 +106,86 @@ const buildBadge = ({ language, slug, hex }) => {
     return `[![${language}](https://img.shields.io/badge/${label}-555555?style=flat)](${repoUrl})`;
 };
 
+// ── Sections ─────────────────────────────────────────────────────────────────
+
+const SECTIONS = [
+    {
+        key: 'summary',
+        start: '<!-- summary-start -->',
+        end: '<!-- summary-end -->',
+        async fetch() {
+            console.log('\nFetching account summary…');
+            const res = await fetch(`${BASE}/account-summary-md?username=${username}`);
+            if (!res.ok) throw new Error(`/account-summary-md → ${res.status}`);
+            const text = await res.text();
+            console.log('  ✓  summary');
+            return '\n' + text + '\n';
+        },
+    },
+    {
+        key: 'charts',
+        start: '<!-- tech-charts-start -->',
+        end: '<!-- tech-charts-end -->',
+        async fetch() {
+            console.log('\nFetching tech categories…');
+            const catRes = await fetch(`${BASE}/tech-categories?limit=8`);
+            if (!catRes.ok) throw new Error(`/tech-categories → ${catRes.status}`);
+            const categories = await catRes.json();
+            const chartable = categories.filter(c => c.count >= MIN_TECHS_FOR_CHART);
+            console.log(`  Found ${categories.length} categories, ${chartable.length} chartable`);
+
+            console.log('\nFetching category charts…');
+            const charts = [];
+            for (const cat of chartable) {
+                const url = `${BASE}/tech-spider?type=spider&categories=${cat.category}&limit=8&title=${encodeURIComponent(cat.label)}`;
+                const res = await fetch(url);
+                if (!res.ok) { console.log(`  ✗  ${cat.category} (${res.status})`); continue; }
+                charts.push({ ...cat, svg: await res.text() });
+                console.log(`  ✓  ${cat.category} (${cat.count} techs)`);
+            }
+
+            console.log('\nPushing chart assets…');
+            for (const chart of charts) {
+                await pushAsset(`assets/tech-${chart.category}.svg`, chart.svg);
+            }
+
+            const imgs = charts
+                .map(c => `<img src="./assets/tech-${c.category}.svg" width="600" height="600" alt="${c.label}" />`)
+                .join('\n\n');
+            return '\n' + imgs + '\n';
+        },
+    },
+    {
+        key: 'badges',
+        start: '<!-- tech-start -->',
+        end: '<!-- tech-end -->',
+        async fetch() {
+            console.log('\nFetching tech list for badges…');
+            const res = await fetch(`${BASE}/tech-list?sort=frequency`);
+            if (!res.ok) throw new Error(`/tech-list → ${res.status}`);
+            const techList = await res.json();
+            const badges = techList.map(buildBadge).join(' ');
+            console.log(`  ✓  ${techList.length} badges`);
+            return '\n' + badges + '\n';
+        },
+    },
+];
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 (async () => {
-    // 1. Detect non-empty categories
-    console.log('\nFetching tech categories…');
-    const catRes = await fetch(`${BASE}/tech-categories?limit=8`);
-    if (!catRes.ok) throw new Error(`/tech-categories → ${catRes.status}`);
-    const categories = await catRes.json();
-    const chartable = categories.filter(c => c.count >= MIN_TECHS_FOR_CHART);
-    console.log(`  Found ${categories.length} categories, ${chartable.length} have enough data for a chart`);
-
-    // 2. Fetch account summary SVG
-    console.log('\nFetching account summary…');
-    const summaryRes = await fetch(`${BASE}/account-summary?username=${username}&background=cherry-blossom`);
-    if (!summaryRes.ok) throw new Error(`/account-summary → ${summaryRes.status}`);
-    const summarysvg = await summaryRes.text();
-
-    // 3. Fetch a spider chart per category
-    console.log('\nFetching category charts…');
-    const charts = [];
-    for (const cat of chartable) {
-        const url = `${BASE}/tech-spider?type=spider&categories=${cat.category}&limit=8&title=${encodeURIComponent(cat.label)}`;
-        const res = await fetch(url);
-        if (!res.ok) { console.log(`  ✗  ${cat.category} (${res.status})`); continue; }
-        charts.push({ ...cat, svg: await res.text() });
-        console.log(`  ✓  ${cat.category} (${cat.count} techs)`);
-    }
-
-    // 4. Fetch tech list for badges
-    console.log('\nFetching tech list for badges…');
-    const techRes = await fetch(`${BASE}/tech-list?sort=frequency`);
-    if (!techRes.ok) throw new Error(`/tech-list → ${techRes.status}`);
-    const techList = await techRes.json();
-    const badges = techList.map(buildBadge).join(' ');
-
-    // 5. Push assets
-    console.log('\nPushing assets…');
-    await pushAsset('assets/account-summary.svg', summarysvg);
-    for (const chart of charts) {
-        await pushAsset(`assets/tech-${chart.category}.svg`, chart.svg);
-    }
-
-    // 6. Update profile README
-    console.log('\nUpdating README…');
     const { content: b64, sha } = await getFile(README_PATH);
     let readme = Buffer.from(b64, 'base64').toString('utf8');
 
-    readme = ensureMarkers(readme);
+    readme = ensureMarkers(readme, SECTIONS);
 
-    const chartImgs = charts
-        .map(c => `<img src="./assets/tech-${c.category}.svg" width="600" height="600" alt="${c.label}" />`)
-        .join('\n\n');
+    for (const section of SECTIONS) {
+        const content = await section.fetch();
+        readme = inject(readme, section.start, section.end, content);
+    }
 
-    readme = inject(readme, CHART_START, CHART_END, '\n' + chartImgs + '\n');
-    readme = inject(readme, BADGE_START, BADGE_END, '\n' + badges + '\n');
-
-    await putFile(README_PATH, readme, sha, 'chore: update tech charts and badges');
+    console.log('\nUpdating README…');
+    await putFile(README_PATH, readme, sha, 'chore: update profile summary and charts');
     console.log('  ✓  README.md');
 
     console.log('\nDone.');
