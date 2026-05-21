@@ -71,6 +71,21 @@ jobs:
           REGION="${{ vars.GCP_REGION }}"
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
+      - name: Ensure Artifact Registry repository exists
+        env:
+          REGION:  ${{ vars.GCP_REGION }}
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+        run: |
+          gcloud artifacts repositories describe github-pretty-readme \
+            --location="${REGION}" --project="${PROJECT}" --quiet 2>/dev/null \
+          || gcloud artifacts repositories create github-pretty-readme \
+            --repository-format=docker \
+            --location="${REGION}" \
+            --project="${PROJECT}" \
+            --description="Docker images for github-pretty-readme" \
+            --quiet
+          echo "✓ Artifact Registry repository ready"
+
       - name: Build and push image
         env:
           REGION:  ${{ vars.GCP_REGION }}
