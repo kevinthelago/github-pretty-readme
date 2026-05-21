@@ -39,7 +39,7 @@ export const authCallback = async (req, res) => {
         req.session.github_avatar   = user.avatar_url;
         req.session.github_name     = user.name ?? user.login;
 
-        res.redirect('/dashboard');
+        res.redirect('/');
     } catch (err) {
         res.redirect('/?error=' + encodeURIComponent(err.message));
     }

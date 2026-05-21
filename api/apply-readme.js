@@ -36,7 +36,17 @@ const putFile = async (token, repo, path, content, sha, message) => {
     const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
         method: 'PUT', headers: ghHeaders(token), body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`PUT ${path} → ${res.status}: ${await res.text()}`);
+    if (!res.ok) {
+        const text = await res.text();
+        if (res.status === 403) {
+            throw new Error(
+                `PUT ${path} → 403: GitHub denied write access. ` +
+                `If you registered a GitHub App (not a classic OAuth App), it must be installed on your profile repo and have Contents: Read & write permission. ` +
+                `Otherwise, try logging out and reconnecting.`
+            );
+        }
+        throw new Error(`PUT ${path} → ${res.status}: ${text}`);
+    }
 };
 
 const pushAsset = async (token, repo, filePath, content) => {
