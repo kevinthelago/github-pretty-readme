@@ -1,0 +1,13 @@
+.env
+.git
+.github
+.claude
+.gitignore
+node_modules
+scripts/
+preview/
+preview.config.js
+test.md
+yarn.lock
+CLAUDE.md
+README.md

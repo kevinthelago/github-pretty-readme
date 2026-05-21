@@ -11,17 +11,14 @@ import improveTopics from './api/improve-topics.js';
 import improveDescriptions from './api/improve-descriptions.js';
 import monkeytype from './api/monkeytype.js';
 import express from 'express';
-import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const landingHtml = readFileSync(join(__dirname, 'src/landing.html'), 'utf8');
 
 const app = express();
+app.use(express.static(join(__dirname, 'public')));
 app.listen(process.env.port || 8080);
-
-app.get('/', (req, res) => res.setHeader('Content-Type', 'text/html').send(landingHtml));
 
 app.get('/account-summary', accountSummary);
 app.get('/account-summary-md', accountSummaryMd);
