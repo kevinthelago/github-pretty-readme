@@ -41,11 +41,6 @@ app.get('/auth/callback', authCallback);
 app.get('/auth/logout',   authLogout);
 app.get('/auth/me',       authMe);
 
-// Dashboard (authenticated)
-app.get('/dashboard', requireAuth, (req, res) => {
-    res.sendFile(join(__dirname, 'public', 'dashboard.html'));
-});
-
 // Profile update
 app.get('/apply-readme', requireAuth, applyReadme);
 

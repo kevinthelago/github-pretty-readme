@@ -17,7 +17,7 @@
             --accent:   #58a6ff;
             --purple:   #c792ea;
             --green:    #c3e88d;
-            /* GitHub dark palette */
+            --red:      #f78c6c;
             --gh-bg:      #0d1117;
             --gh-bg2:     #161b22;
             --gh-border:  #30363d;
@@ -28,111 +28,65 @@
             --gh-hr:      #21262d;
         }
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            line-height: 1.6;
-        }
+        body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; line-height:1.6; }
 
         /* ── Nav ── */
         nav {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 18px 40px;
-            border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            background: rgba(13,17,23,0.85);
-            backdrop-filter: blur(12px);
-            z-index: 10;
+            display:flex; align-items:center; justify-content:space-between;
+            padding:18px 40px; border-bottom:1px solid var(--border);
+            position:sticky; top:0; background:rgba(13,17,23,0.9);
+            backdrop-filter:blur(12px); z-index:10;
         }
         .nav-logo { font-size:15px; font-weight:600; letter-spacing:0.5px; color:var(--text); text-decoration:none; }
-        .nav-logo span { color: var(--accent); }
-        nav a.gh-link { color:var(--muted); text-decoration:none; font-size:13px; transition:color 0.2s; }
-        nav a.gh-link:hover { color: var(--text); }
+        .nav-logo span { color:var(--accent); }
+        .nav-right { display:flex; align-items:center; gap:16px; }
+        .nav-user { display:none; align-items:center; gap:10px; }
+        .nav-user img { width:28px; height:28px; border-radius:50%; border:1px solid var(--border); }
+        .nav-user span { font-size:13px; color:var(--muted); }
+        .gh-link { color:var(--muted); text-decoration:none; font-size:13px; transition:color 0.2s; }
+        .gh-link:hover { color:var(--text); }
+
+        /* ── Buttons ── */
+        .btn {
+            display:inline-flex; align-items:center; gap:8px;
+            padding:12px 24px; border-radius:8px; font-size:14px; font-weight:600;
+            text-decoration:none; transition:opacity 0.2s,transform 0.15s;
+            cursor:pointer; border:none;
+        }
+        .btn:hover:not(:disabled) { opacity:0.85; transform:translateY(-1px); }
+        .btn:disabled { opacity:0.4; cursor:not-allowed; }
+        .btn-primary   { background:var(--accent); color:#0d1117; }
+        .btn-secondary { background:var(--surface); color:var(--text); border:1px solid var(--border); }
+        .btn-sm {
+            background:none; border:1px solid var(--border); color:var(--muted);
+            padding:6px 14px; border-radius:6px; font-size:13px; cursor:pointer;
+            display:inline-flex; align-items:center; transition:border-color 0.2s,color 0.2s;
+        }
+        .btn-sm:hover:not(:disabled) { border-color:var(--text); color:var(--text); }
+        .btn-sm:disabled { opacity:0.4; cursor:not-allowed; }
 
         /* ── Hero ── */
-        .hero {
-            text-align: center;
-            padding: 96px 24px 72px;
-            max-width: 680px;
-            margin: 0 auto;
-        }
+        .hero { text-align:center; padding:88px 24px 64px; max-width:680px; margin:0 auto; }
         .hero-badge {
-            display: inline-block;
-            background: rgba(88,166,255,0.1);
-            border: 1px solid rgba(88,166,255,0.25);
-            color: var(--accent);
-            font-size: 12px;
-            letter-spacing: 2px;
-            padding: 4px 14px;
-            border-radius: 20px;
-            margin-bottom: 28px;
-            text-transform: uppercase;
+            display:inline-block; background:rgba(88,166,255,0.1);
+            border:1px solid rgba(88,166,255,0.25); color:var(--accent);
+            font-size:12px; letter-spacing:2px; padding:4px 14px;
+            border-radius:20px; margin-bottom:28px; text-transform:uppercase;
         }
-        h1 {
-            font-size: clamp(32px, 6vw, 52px);
-            font-weight: 700;
-            line-height: 1.15;
-            letter-spacing: -1px;
-            margin-bottom: 20px;
-        }
-        h1 em {
-            font-style: normal;
-            background: linear-gradient(90deg, var(--accent), var(--purple));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .hero-sub {
-            color: var(--muted);
-            font-size: 17px;
-            max-width: 480px;
-            margin: 0 auto 44px;
-        }
+        h1 { font-size:clamp(32px,6vw,52px); font-weight:700; line-height:1.15; letter-spacing:-1px; margin-bottom:20px; }
+        h1 em { font-style:normal; background:linear-gradient(90deg,var(--accent),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        .hero-sub { color:var(--muted); font-size:17px; max-width:480px; margin:0 auto 44px; }
         .cta-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: opacity 0.2s, transform 0.15s;
-            cursor: pointer;
-            border: none;
-        }
-        .btn:hover { opacity:0.85; transform:translateY(-1px); }
-        .btn-primary  { background:var(--accent); color:#0d1117; }
-        .btn-secondary { background:var(--surface); color:var(--text); border:1px solid var(--border); }
 
         /* ── Sections ── */
-        .section {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 24px 80px;
-        }
-        .section-label {
-            font-size: 11px;
-            letter-spacing: 3px;
-            color: var(--muted);
-            text-transform: uppercase;
-            margin-bottom: 16px;
-        }
+        .section { max-width:1100px; margin:0 auto; padding:0 24px 80px; }
+        .section-label { font-size:11px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-bottom:16px; }
 
         /* ── GitHub browser chrome ── */
         .gh-browser {
-            background: var(--gh-bg2);
-            border: 1px solid var(--gh-border);
-            border-radius: 10px 10px 0 0;
-            padding: 10px 14px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            background:var(--gh-bg2); border:1px solid var(--gh-border);
+            border-radius:10px 10px 0 0; padding:10px 14px;
+            display:flex; align-items:center; gap:10px;
         }
         .gh-dots { display:flex; gap:6px; flex-shrink:0; }
         .gh-dot  { width:11px; height:11px; border-radius:50%; }
@@ -140,58 +94,22 @@
         .gh-dot:nth-child(2) { background:#febc2e; }
         .gh-dot:nth-child(3) { background:#28c840; }
         .gh-url {
-            flex:1; min-width:0;
-            background: var(--gh-bg);
-            border: 1px solid var(--gh-border);
-            border-radius: 4px;
-            padding: 3px 10px;
-            font-size: 12px;
-            color: var(--gh-muted);
-            font-family: 'SF Mono','Fira Code',monospace;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            flex:1; min-width:0; background:var(--gh-bg); border:1px solid var(--gh-border);
+            border-radius:4px; padding:3px 10px; font-size:12px; color:var(--gh-muted);
+            font-family:'SF Mono','Fira Code',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
         }
-        .gh-window {
-            border: 1px solid var(--gh-border);
-            border-top: none;
-            border-radius: 0 0 10px 10px;
-            overflow: hidden;
-        }
+        .gh-window { border:1px solid var(--gh-border); border-top:none; border-radius:0 0 10px 10px; overflow:hidden; }
 
-        /* ── Tabs inside the window ── */
-        .preview-tab-bar {
-            display: flex;
-            background: var(--gh-bg2);
-            border-bottom: 1px solid var(--gh-border);
-            padding: 0 16px;
-        }
-        .preview-tab {
-            background: none;
-            border: none;
-            border-bottom: 2px solid transparent;
-            color: var(--gh-muted);
-            padding: 10px 16px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: color 0.15s, border-color 0.15s;
-            margin-bottom: -1px;
-        }
-        .preview-tab:hover { color: var(--gh-text); }
-        .preview-tab.active { color: var(--gh-text); border-bottom-color: var(--accent); }
-        .preview-tab-content { display: none; }
-        .preview-tab-content.active { display: block; }
+        /* ── Preview tabs ── */
+        .preview-tab-bar { display:flex; background:var(--gh-bg2); border-bottom:1px solid var(--gh-border); padding:0 16px; }
+        .preview-tab { background:none; border:none; border-bottom:2px solid transparent; color:var(--gh-muted); padding:10px 16px; font-size:13px; font-weight:500; cursor:pointer; transition:color 0.15s,border-color 0.15s; margin-bottom:-1px; }
+        .preview-tab:hover { color:var(--gh-text); }
+        .preview-tab.active { color:var(--gh-text); border-bottom-color:var(--accent); }
+        .preview-tab-content { display:none; }
+        .preview-tab-content.active { display:block; }
 
         /* ── GitHub-rendered markdown ── */
-        .gh-render {
-            background: var(--gh-bg);
-            color: var(--gh-text);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-            font-size: 15px;
-            line-height: 1.6;
-            padding: 32px 40px;
-        }
+        .gh-render { background:var(--gh-bg); color:var(--gh-text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:15px; line-height:1.6; padding:32px 40px; }
         .gh-render h1 { font-size:2em; font-weight:600; border-bottom:1px solid var(--gh-hr); padding-bottom:0.3em; margin:0 0 16px; }
         .gh-render h2 { font-size:1.5em; font-weight:600; border-bottom:1px solid var(--gh-hr); padding-bottom:0.3em; margin:24px 0 16px; }
         .gh-render h3 { font-size:1.25em; font-weight:600; margin:24px 0 16px; }
@@ -216,56 +134,54 @@
         .gh-render .profile-badges { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
         .gh-render .profile-badges img { margin:0; display:inline; }
 
-        /* loading placeholder */
-        .img-loading {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid var(--gh-border);
-            border-radius: 6px;
-            height: 140px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--gh-muted);
-            font-size: 13px;
-            margin-bottom: 16px;
-        }
+        /* ── Image loading placeholder ── */
+        .img-loading { background:rgba(255,255,255,0.04); border:1px solid var(--gh-border); border-radius:6px; height:140px; display:flex; align-items:center; justify-content:center; color:var(--gh-muted); font-size:13px; margin-bottom:16px; }
 
-        /* insights gate */
-        .insights-gate {
-            padding: 48px 40px;
-            text-align: center;
-            background: var(--gh-bg);
-        }
-        .insights-gate p  { font-size:13px; color:var(--gh-muted); margin-bottom:16px; line-height:1.6; }
-        .btn-sm {
-            background:none; border:1px solid var(--border); color:var(--muted);
-            padding:6px 14px; border-radius:6px; font-size:13px; cursor:pointer;
-            transition:border-color 0.2s,color 0.2s;
-        }
-        .btn-sm:hover { border-color:var(--text); color:var(--text); }
+        /* ── Insights gate / loading ── */
+        .insights-gate { padding:48px 40px; text-align:center; background:var(--gh-bg); }
+        .insights-gate p { font-size:13px; color:var(--gh-muted); margin-bottom:16px; line-height:1.6; }
         .insights-loading { background:var(--gh-bg); padding:48px 40px; text-align:center; display:none; }
         .loading-dots { font-size:14px; color:var(--gh-muted); }
         .loading-dots span { animation:blink 1.4s infinite; display:inline-block; }
         .loading-dots span:nth-child(2) { animation-delay:.2s; }
         .loading-dots span:nth-child(3) { animation-delay:.4s; }
         @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
-        .insights-error { font-size:12px; color:#f78c6c; margin-top:10px; display:none; }
+        .insights-error { font-size:12px; color:var(--red); margin-top:10px; display:none; }
+
+        /* ── Apply section (below preview) ── */
+        .apply-section { text-align:center; }
+        .apply-log {
+            margin:16px auto 0; max-width:600px;
+            background:rgba(255,255,255,0.03); border:1px solid var(--border);
+            border-radius:8px; padding:12px 16px;
+            font-family:'SF Mono','Fira Code',monospace; font-size:12px; line-height:1.9;
+            text-align:left; max-height:200px; overflow-y:auto; display:none;
+        }
+        .apply-log .ok   { color:var(--green); }
+        .apply-log .err  { color:var(--red); }
+        .apply-log .done { color:var(--accent); font-weight:600; }
+        .apply-msg { font-size:13px; margin-top:12px; color:var(--muted); display:none; }
+        .apply-msg.success { color:var(--green); }
+        .apply-msg.error   { color:var(--red); }
+
+        /* ── Settings cards ── */
+        .cards-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; }
+        .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; }
+        .card-title { font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; display:flex; align-items:center; justify-content:space-between; }
+        .card-desc { font-size:13px; color:var(--muted); margin-bottom:14px; }
+        .mt-field { display:flex; flex-direction:column; gap:4px; margin-bottom:10px; }
+        .mt-field label { font-size:12px; color:var(--muted); }
+        .mt-field input { background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:7px 10px; font-size:13px; width:100%; }
+        .mt-field input:focus { outline:none; border-color:var(--accent); }
+        .mt-status { font-size:12px; color:var(--green); }
+        .inline-error { font-size:12px; color:var(--red); margin-top:6px; display:none; }
+        .card .apply-log { margin:10px 0 0; max-height:220px; }
+        .card .apply-msg { margin-top:8px; }
 
         /* ── How it works ── */
-        .steps {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px;
-            margin-top: 8px;
-        }
+        .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-top:8px; }
         .step { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:24px; }
-        .step-num {
-            width:28px; height:28px; border-radius:50%;
-            background:rgba(88,166,255,0.12); color:var(--accent);
-            font-size:12px; font-weight:700;
-            display:flex; align-items:center; justify-content:center;
-            margin-bottom:14px;
-        }
+        .step-num { width:28px; height:28px; border-radius:50%; background:rgba(88,166,255,0.12); color:var(--accent); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-bottom:14px; }
         .step h4 { font-size:14px; margin-bottom:6px; }
         .step p  { font-size:13px; color:var(--muted); }
 
@@ -278,10 +194,16 @@
 
 <nav>
     <a class="nav-logo" href="/">github-<span>pretty</span>-readme</a>
-    <a class="gh-link" href="https://github.com/kevinthelago/github-pretty-readme" target="_blank">View on GitHub →</a>
+    <div class="nav-right">
+        <div class="nav-user" id="nav-user">
+            <img id="nav-avatar" src="" alt="" />
+            <span id="nav-username"></span>
+        </div>
+        <a class="gh-link" href="https://github.com/kevinthelago/github-pretty-readme" target="_blank">View on GitHub →</a>
+    </div>
 </nav>
 
-<!-- Hero -->
+<!-- ── Hero ────────────────────────────────────────────────────────────────── -->
 <section class="hero">
     <div class="hero-badge">Open source</div>
     <h1>Your GitHub profile,<br/><em>automatically upgraded</em></h1>
@@ -296,35 +218,15 @@
         </a>
         <a class="btn btn-secondary" href="https://github.com/kevinthelago/github-pretty-readme" target="_blank">Self-host</a>
     </div>
-    <div id="apply-area" style="display:none;margin-top:20px;width:100%;max-width:480px;margin-left:auto;margin-right:auto">
-        <div id="apply-log-lp" style="
-            background:rgba(255,255,255,0.04);
-            border:1px solid rgba(255,255,255,0.08);
-            border-radius:8px;
-            padding:12px 16px;
-            font-family:'SF Mono','Fira Code',monospace;
-            font-size:12px;
-            line-height:1.9;
-            color:rgba(255,255,255,0.4);
-            display:none;
-            max-height:180px;
-            overflow-y:auto;
-            text-align:left;
-            margin-top:12px;
-        "></div>
-        <p id="apply-status-lp" style="font-size:13px;color:rgba(255,255,255,0.4);margin-top:10px;display:none"></p>
-    </div>
 </section>
 
-<!-- Live preview -->
+<!-- ── Preview ──────────────────────────────────────────────────────────────── -->
 <div class="section">
     <p class="section-label">Live preview</p>
 
     <div class="gh-browser">
         <div class="gh-dots">
-            <div class="gh-dot"></div>
-            <div class="gh-dot"></div>
-            <div class="gh-dot"></div>
+            <div class="gh-dot"></div><div class="gh-dot"></div><div class="gh-dot"></div>
         </div>
         <div class="gh-url" id="preview-url">github.com/kevinthelago/kevinthelago</div>
     </div>
@@ -334,13 +236,12 @@
             <button class="preview-tab" data-tab="insights">Developer Insights</button>
         </div>
 
-        <!-- Profile README tab -->
         <div class="preview-tab-content active" id="preview-tab-readme">
             <div class="gh-render">
                 <p id="preview-bio" style="margin-bottom:24px;color:var(--gh-muted);font-style:italic">Loading bio…</p>
 
                 <div class="img-loading" id="preview-rating-ph">Loading developer rating…</div>
-                <a href="https://github.com/kevinthelago/kevinthelago/blob/main/DEVELOPER_INSIGHTS.md">
+                <a id="preview-rating-link" href="https://github.com/kevinthelago/kevinthelago/blob/main/DEVELOPER_INSIGHTS.md">
                     <img id="preview-rating" src="/developer-rating" alt="Developer Rating"
                          style="display:none;width:100%;border-radius:4px;margin-bottom:16px" />
                 </a>
@@ -353,7 +254,6 @@
             </div>
         </div>
 
-        <!-- Developer Insights tab -->
         <div class="preview-tab-content" id="preview-tab-insights">
             <div class="insights-gate" id="insights-gate">
                 <p>Generates a live developer insights report with CI/deployment metrics and AI recommendations.<br>Takes 30–60 seconds.</p>
@@ -369,7 +269,72 @@
     </div>
 </div>
 
-<!-- How it works -->
+<!-- ── Apply below preview (authenticated only) ─────────────────────────────── -->
+<div class="section apply-section" id="apply-section" style="display:none">
+    <button class="btn btn-primary" id="apply-btn-2" style="font-size:15px;padding:13px 32px">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        Apply to Profile
+    </button>
+    <p class="apply-msg" id="apply-msg"></p>
+    <div class="apply-log" id="apply-log"></div>
+</div>
+
+<!-- ── Settings (authenticated only) ───────────────────────────────────────── -->
+<div class="section" id="settings-section" style="display:none">
+    <p class="section-label">Settings</p>
+    <div class="cards-grid">
+
+        <!-- Monkeytype -->
+        <div class="card">
+            <div class="card-title">
+                Typing Speed
+                <span class="mt-status" id="mt-status" style="display:none">✓ Connected</span>
+            </div>
+            <p class="card-desc">Show your Monkeytype personal bests in your profile README.</p>
+            <div id="mt-connect-form">
+                <div class="mt-field">
+                    <label for="mt-key">Ape Key <span style="font-weight:400">(monkeytype.com/settings)</span></label>
+                    <input id="mt-key" type="password" placeholder="paste your Ape Key…" />
+                </div>
+                <div class="mt-field">
+                    <label for="mt-user">Username <span style="font-weight:400">(optional)</span></label>
+                    <input id="mt-user" type="text" placeholder="your Monkeytype username" />
+                </div>
+                <button class="btn-sm" id="mt-save" style="margin-top:4px">Connect</button>
+                <p class="inline-error" id="mt-error"></p>
+            </div>
+            <div id="mt-connected" style="display:none">
+                <p style="font-size:13px;color:var(--muted);margin-bottom:10px" id="mt-connected-label">Monkeytype connected.</p>
+                <button class="btn-sm" id="mt-disconnect">Disconnect</button>
+            </div>
+        </div>
+
+        <!-- Repo Improvements -->
+        <div class="card">
+            <div class="card-title">Repo Improvements</div>
+            <p class="card-desc">Use AI to fill in missing topics and descriptions across your repositories.</p>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
+                    <input type="checkbox" id="toggle-topics" checked style="accent-color:var(--accent);width:14px;height:14px" />
+                    AI Topics <span style="color:var(--muted);font-size:12px">(repos with &lt;3 topics)</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
+                    <input type="checkbox" id="toggle-descriptions" checked style="accent-color:var(--accent);width:14px;height:14px" />
+                    AI Descriptions <span style="color:var(--muted);font-size:12px">(repos with no description)</span>
+                </label>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="btn-sm" id="imp-preview-btn">Preview Changes</button>
+                <button class="btn-sm" id="imp-apply-btn" disabled>Apply</button>
+            </div>
+            <div class="apply-log" id="imp-log" style="max-height:220px"></div>
+            <p class="apply-msg" id="imp-status"></p>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── How it works ─────────────────────────────────────────────────────────── -->
 <div class="section">
     <p class="section-label">How it works</p>
     <div class="steps">
@@ -409,46 +374,45 @@ document.querySelectorAll('.preview-tab').forEach(tab => {
         document.querySelectorAll('.preview-tab-content').forEach(c => c.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById('preview-tab-' + tab.dataset.tab).classList.add('active');
-        // Update URL bar
-        document.getElementById('preview-url').textContent = tab.dataset.tab === 'insights'
-            ? 'github.com/kevinthelago/kevinthelago/blob/main/DEVELOPER_INSIGHTS.md'
-            : 'github.com/kevinthelago/kevinthelago';
+        if (window._authUser) {
+            document.getElementById('preview-url').textContent = tab.dataset.tab === 'insights'
+                ? `github.com/${window._authUser}/${window._authUser}/blob/main/DEVELOPER_INSIGHTS.md`
+                : `github.com/${window._authUser}/${window._authUser}`;
+        }
     });
 });
 
-// ── Profile README: bio ───────────────────────────────────────────────────────
+// ── Profile bio ───────────────────────────────────────────────────────────────
 const bioEl = document.getElementById('preview-bio');
 fetch('/account-summary-md').then(r => r.ok ? r.text() : null).then(text => {
     if (!text) return;
-    bioEl.textContent  = text;
-    bioEl.style.color  = '';
-    bioEl.style.fontStyle = '';
+    bioEl.textContent = text;
+    bioEl.style.color = bioEl.style.fontStyle = '';
 }).catch(() => { bioEl.textContent = ''; });
 
-// ── Profile README: rating SVG ────────────────────────────────────────────────
+// ── Rating SVG ────────────────────────────────────────────────────────────────
 const ratingImg = document.getElementById('preview-rating');
 const ratingPh  = document.getElementById('preview-rating-ph');
 ratingImg.onload  = () => { ratingPh.style.display = 'none'; ratingImg.style.display = 'block'; };
 ratingImg.onerror = () => { ratingPh.textContent = 'Rating preview unavailable'; };
 
-// ── Profile README: tech grid ─────────────────────────────────────────────────
+// ── Tech grid ─────────────────────────────────────────────────────────────────
 const techImg = document.getElementById('preview-tech');
 const techPh  = document.getElementById('preview-tech-ph');
 fetch('/tech-categories?limit=8').then(r => r.json()).then(cats => {
     const chartable = cats.filter(c => c.count >= 3);
     if (!chartable.length) { techPh.textContent = 'No tech data available'; return; }
     const cols    = chartable.length <= 3 ? chartable.length : Math.ceil(Math.sqrt(chartable.length));
-    const catList = chartable.map(c => c.category).join(',');
-    techImg.src   = `/tech-spider?type=grid&categories=${catList}&limit=8&columns=${cols}`;
+    techImg.src   = `/tech-spider?type=grid&categories=${chartable.map(c => c.category).join(',')}&limit=8&columns=${cols}`;
     techImg.onload  = () => { techPh.style.display = 'none'; techImg.style.display = 'block'; };
-    techImg.onerror = () => { techPh.textContent = 'Tech stack preview unavailable'; };
+    techImg.onerror = () => { techPh.textContent = 'Tech stack unavailable'; };
 }).catch(() => { techPh.textContent = 'Could not load tech data'; });
 
-// ── Profile README: badges ────────────────────────────────────────────────────
+// ── Badges ────────────────────────────────────────────────────────────────────
 fetch('/tech-list?sort=frequency').then(r => r.json()).then(techs => {
-    const badgesEl = document.getElementById('preview-badges');
+    const el = document.getElementById('preview-badges');
     if (!techs.length) return;
-    badgesEl.innerHTML = techs.slice(0, 16).map(t => {
+    el.innerHTML = techs.slice(0, 16).map(t => {
         const label = encodeURIComponent(t.language);
         const src   = t.slug && t.hex
             ? `https://img.shields.io/badge/${label}-${t.hex}?style=flat&logo=${t.slug}&logoColor=white`
@@ -457,7 +421,7 @@ fetch('/tech-list?sort=frequency').then(r => r.json()).then(techs => {
     }).join('');
 }).catch(() => {});
 
-// ── Developer Insights ─────────────────────────────────────────────────────────
+// ── Developer Insights ────────────────────────────────────────────────────────
 let insightsLoaded = false;
 const insightsGate    = document.getElementById('insights-gate');
 const insightsLoading = document.getElementById('insights-loading');
@@ -474,11 +438,9 @@ document.getElementById('load-insights-btn').addEventListener('click', async () 
         const text = await r.text();
         if (!r.ok) throw new Error(text || r.statusText);
         insightsLoading.style.display = 'none';
-        if (typeof marked !== 'undefined') {
-            insightsBody.innerHTML = marked.parse(text);
-        } else {
-            insightsBody.innerHTML = '<pre style="white-space:pre-wrap;font-size:13px">' + text.replace(/</g, '&lt;') + '</pre>';
-        }
+        insightsBody.innerHTML = typeof marked !== 'undefined'
+            ? marked.parse(text)
+            : '<pre style="white-space:pre-wrap;font-size:13px">' + text.replace(/</g, '&lt;') + '</pre>';
         insightsBody.style.display = 'block';
         insightsLoaded = true;
     } catch (err) {
@@ -489,63 +451,226 @@ document.getElementById('load-insights-btn').addEventListener('click', async () 
     }
 });
 
-// ── OAuth error ───────────────────────────────────────────────────────────────
+// ── OAuth error banner ────────────────────────────────────────────────────────
 const params = new URLSearchParams(location.search);
 if (params.get('error')) {
-    const err = document.createElement('p');
-    err.style.cssText = 'color:#f78c6c;font-size:13px;margin-top:12px;text-align:center';
-    err.textContent = 'GitHub sign-in failed: ' + decodeURIComponent(params.get('error'));
-    document.getElementById('cta-row').after(err);
+    const p = document.createElement('p');
+    p.style.cssText = 'color:var(--red);font-size:13px;margin-top:12px;text-align:center';
+    p.textContent = 'GitHub sign-in failed: ' + decodeURIComponent(params.get('error'));
+    document.getElementById('cta-row').after(p);
 }
+
+// ── Apply logic (shared between both buttons) ─────────────────────────────────
+const applyLog = document.getElementById('apply-log');
+const applyMsg = document.getElementById('apply-msg');
+let applyRunning = false;
+
+const runApply = async (allBtns) => {
+    if (applyRunning) return;
+    applyRunning = true;
+    allBtns.forEach(b => { b.disabled = true; });
+    applyMsg.className   = 'apply-msg';
+    applyMsg.textContent = 'Generating and pushing to GitHub…';
+    applyMsg.style.display = 'block';
+    applyLog.innerHTML   = '';
+    applyLog.style.display = 'block';
+    document.getElementById('apply-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    try {
+        const res  = await fetch('/apply-readme');
+        const data = await res.json();
+        if (data.steps?.length) {
+            applyLog.innerHTML = data.steps.map(s =>
+                `<div class="${s.startsWith('Done') ? 'done' : 'ok'}">✓ ${s}</div>`
+            ).join('');
+        }
+        if (data.ok) {
+            applyMsg.textContent = `✓ Profile updated — github.com/${window._authUser}`;
+            applyMsg.className   = 'apply-msg success';
+            insightsLoaded = false;
+            insightsBody.innerHTML = '';
+            insightsBody.style.display = 'none';
+            insightsGate.style.display = 'block';
+        } else {
+            throw new Error(data.error ?? 'Unknown error');
+        }
+    } catch (err) {
+        applyMsg.textContent = '✗ ' + err.message;
+        applyMsg.className   = 'apply-msg error';
+        applyLog.innerHTML  += `<div class="err">✗ ${err.message}</div>`;
+    } finally {
+        applyRunning = false;
+        allBtns.forEach(b => { b.disabled = false; });
+    }
+};
 
 // ── Auth state ────────────────────────────────────────────────────────────────
 fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
     if (!me) return;
-    document.getElementById('preview-url').textContent = `github.com/${me.username}/${me.username}`;
-    document.getElementById('cta-row').innerHTML = `
-        <a class="btn btn-primary" href="/dashboard">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-            Open Dashboard
-        </a>
-        <button class="btn btn-secondary" id="apply-btn-lp" style="cursor:pointer">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M10.97 4.97a.235.235 0 0 0-.02.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05z"/></svg>
-            Apply to Profile
-        </button>
-        <a class="btn btn-secondary" href="/auth/logout" style="font-size:13px;padding:10px 16px">Disconnect</a>`;
+    window._authUser = me.username;
 
-    document.getElementById('apply-area').style.display = 'block';
+    // Nav user chip
+    document.getElementById('nav-user').style.display  = 'flex';
+    document.getElementById('nav-avatar').src           = me.avatar;
+    document.getElementById('nav-username').textContent  = '@' + me.username;
 
-    const applyBtnLp   = document.getElementById('apply-btn-lp');
-    const applyLogLp   = document.getElementById('apply-log-lp');
-    const applyStatusLp = document.getElementById('apply-status-lp');
+    // Update preview URL bar and rating link to user's own profile
+    document.getElementById('preview-url').textContent  = `github.com/${me.username}/${me.username}`;
+    document.getElementById('preview-rating-link').href = `https://github.com/${me.username}/${me.username}/blob/main/DEVELOPER_INSIGHTS.md`;
 
-    applyBtnLp.addEventListener('click', async () => {
-        applyBtnLp.disabled      = true;
-        applyStatusLp.textContent = 'Generating and pushing to GitHub…';
-        applyStatusLp.style.color = 'rgba(255,255,255,0.4)';
-        applyStatusLp.style.display = 'block';
-        applyLogLp.innerHTML = '';
-        applyLogLp.style.display = 'block';
+    // Replace hero CTA: Apply (primary) + Disconnect
+    const applyBtn1 = document.createElement('button');
+    applyBtn1.className = 'btn btn-primary';
+    applyBtn1.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> Apply to Profile`;
+    const disconnectA = document.createElement('a');
+    disconnectA.href = '/auth/logout';
+    disconnectA.className = 'btn btn-secondary';
+    disconnectA.textContent = 'Disconnect';
+    const ctaRow = document.getElementById('cta-row');
+    ctaRow.innerHTML = '';
+    ctaRow.append(applyBtn1, disconnectA);
+
+    // Show apply section + settings
+    document.getElementById('apply-section').style.display    = 'block';
+    document.getElementById('settings-section').style.display = 'block';
+
+    // Wire both apply buttons together
+    const applyBtn2  = document.getElementById('apply-btn-2');
+    const allApplyBtns = [applyBtn1, applyBtn2];
+    applyBtn1.addEventListener('click', () => runApply(allApplyBtns));
+    applyBtn2.addEventListener('click', () => runApply(allApplyBtns));
+
+    // ── Monkeytype ────────────────────────────────────────────────────────────
+    const mtStatus    = document.getElementById('mt-status');
+    const mtForm      = document.getElementById('mt-connect-form');
+    const mtConnected = document.getElementById('mt-connected');
+    const mtLabel     = document.getElementById('mt-connected-label');
+    const mtError     = document.getElementById('mt-error');
+
+    const injectMtPreview = () => {
+        let img = document.getElementById('preview-mt');
+        if (!img) {
+            img = document.createElement('img');
+            img.id = 'preview-mt';
+            img.alt = 'Typing Speed';
+            img.style.cssText = 'width:100%;border-radius:4px;margin-bottom:16px;display:none';
+            document.getElementById('preview-rating-link').after(img);
+        }
+        img.onerror = () => { img.style.display = 'none'; };
+        img.onload  = () => { img.style.display = 'block'; };
+        img.src = '/monkeytype?' + Date.now();
+    };
+
+    const showMtConnected = (username) => {
+        mtStatus.style.display    = 'inline';
+        mtForm.style.display      = 'none';
+        mtConnected.style.display = 'block';
+        mtLabel.textContent = username ? `Connected as ${username}.` : 'Monkeytype connected.';
+    };
+    const showMtDisconnected = () => {
+        mtStatus.style.display    = 'none';
+        mtForm.style.display      = 'block';
+        mtConnected.style.display = 'none';
+        const img = document.getElementById('preview-mt');
+        if (img) img.style.display = 'none';
+    };
+
+    if (me.monkeytype_connected) { showMtConnected(me.monkeytype_username); injectMtPreview(); }
+
+    document.getElementById('mt-save').addEventListener('click', async () => {
+        const key  = document.getElementById('mt-key').value.trim();
+        const user = document.getElementById('mt-user').value.trim();
+        if (!key) { mtError.textContent = 'Please enter your Ape Key.'; mtError.style.display = 'block'; return; }
+        const btn = document.getElementById('mt-save');
+        btn.disabled = true; btn.textContent = 'Connecting…';
+        mtError.style.display = 'none';
         try {
-            const res  = await fetch('/apply-readme');
-            const data = await res.json();
-            if (data.steps?.length) {
-                applyLogLp.innerHTML = data.steps.map(s =>
-                    `<div style="color:${s.startsWith('Done') ? '#58a6ff' : '#c3e88d'}">✓ ${s}</div>`
-                ).join('');
-            }
-            if (data.ok) {
-                applyStatusLp.textContent = `✓ Profile updated — github.com/${me.username}`;
-                applyStatusLp.style.color = '#c3e88d';
-            } else {
-                throw new Error(data.error ?? 'Unknown error');
-            }
+            const r = await fetch('/monkeytype/connect', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: key, username: user || null }),
+            });
+            if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? 'Failed'); }
+            showMtConnected(user || null);
+            injectMtPreview();
         } catch (err) {
-            applyStatusLp.textContent = '✗ ' + err.message;
-            applyStatusLp.style.color = '#f78c6c';
-            applyLogLp.innerHTML += `<div style="color:#f78c6c">✗ ${err.message}</div>`;
+            mtError.textContent = '✗ ' + err.message;
+            mtError.style.display = 'block';
         } finally {
-            applyBtnLp.disabled = false;
+            btn.disabled = false; btn.textContent = 'Connect';
+        }
+    });
+
+    document.getElementById('mt-disconnect').addEventListener('click', async () => {
+        await fetch('/monkeytype/disconnect', { method: 'POST' });
+        showMtDisconnected();
+    });
+
+    // ── Repo Improvements ─────────────────────────────────────────────────────
+    const impPreviewBtn = document.getElementById('imp-preview-btn');
+    const impApplyBtn   = document.getElementById('imp-apply-btn');
+    const impLog        = document.getElementById('imp-log');
+    const impStatus     = document.getElementById('imp-status');
+    let lastImpPreview  = null;
+
+    impPreviewBtn.addEventListener('click', async () => {
+        const doTopics = document.getElementById('toggle-topics').checked;
+        const doDescs  = document.getElementById('toggle-descriptions').checked;
+        if (!doTopics && !doDescs) {
+            impStatus.textContent = 'Select at least one type.';
+            impStatus.className   = 'apply-msg error';
+            impStatus.style.display = 'block';
+            return;
+        }
+        impPreviewBtn.disabled = true; impPreviewBtn.textContent = 'Loading…';
+        impApplyBtn.disabled = true;
+        impStatus.style.display = 'none';
+        impLog.innerHTML = ''; impLog.style.display = 'block';
+        lastImpPreview = null;
+
+        try {
+            const [tData, dData] = await Promise.all([
+                doTopics ? fetch('/improve-topics?dry_run=true').then(r => r.json())       : Promise.resolve(null),
+                doDescs  ? fetch('/improve-descriptions?dry_run=true').then(r => r.json()) : Promise.resolve(null),
+            ]);
+            let html = '';
+            if (tData) {
+                html += `<div class="ok">Topics — ${tData.updated?.length ?? 0} repos to update, ${tData.skipped?.length ?? 0} skipped</div>`;
+                tData.updated?.forEach(r => { html += `<div style="padding-left:12px;color:var(--muted)">• ${r.repo}: ${(r.topics ?? []).join(', ')}</div>`; });
+            }
+            if (dData) {
+                html += `<div class="ok" style="margin-top:6px">Descriptions — ${dData.updated?.length ?? 0} repos to update, ${dData.skipped?.length ?? 0} skipped</div>`;
+                dData.updated?.forEach(r => { html += `<div style="padding-left:12px;color:var(--muted)">• ${r.repo}: ${r.description ?? ''}</div>`; });
+            }
+            impLog.innerHTML = html || '<div>Nothing to improve — repos already have topics and descriptions.</div>';
+            lastImpPreview = { doTopics, doDescs };
+            impApplyBtn.disabled = ((tData?.updated?.length ?? 0) + (dData?.updated?.length ?? 0)) === 0;
+        } catch (err) {
+            impLog.innerHTML = `<div class="err">✗ ${err.message}</div>`;
+        } finally {
+            impPreviewBtn.disabled = false; impPreviewBtn.textContent = 'Preview Changes';
+        }
+    });
+
+    impApplyBtn.addEventListener('click', async () => {
+        if (!lastImpPreview) return;
+        const { doTopics, doDescs } = lastImpPreview;
+        impApplyBtn.disabled = true; impPreviewBtn.disabled = true;
+        impStatus.textContent = 'Applying…'; impStatus.className = 'apply-msg'; impStatus.style.display = 'block';
+        try {
+            const [tRes, dRes] = await Promise.all([
+                doTopics ? fetch('/improve-topics').then(r => r.json())       : Promise.resolve(null),
+                doDescs  ? fetch('/improve-descriptions').then(r => r.json()) : Promise.resolve(null),
+            ]);
+            const parts = [];
+            if (tRes) parts.push(`${tRes.updated?.length ?? 0} repos updated with AI topics`);
+            if (dRes) parts.push(`${dRes.updated?.length ?? 0} repos updated with AI descriptions`);
+            impStatus.textContent = '✓ ' + parts.join(', ');
+            impStatus.className   = 'apply-msg success';
+            lastImpPreview = null; impApplyBtn.disabled = true;
+        } catch (err) {
+            impStatus.textContent = '✗ ' + err.message;
+            impStatus.className   = 'apply-msg error';
+        } finally {
+            impPreviewBtn.disabled = false;
         }
     });
 }).catch(() => {});
