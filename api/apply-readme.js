@@ -6,6 +6,7 @@ import { buildTechSeries, lookupIcon }      from '../src/github/tech-data.js';
 import { renderTechGrid }                   from '../src/tiles/tech-grid.js';
 import { renderMonkeytypeChart }            from '../src/tiles/monkeytype-chart.js';
 import { GoogleGenerativeAI }              from '@google/generative-ai';
+import { previewCache }                    from '../src/preview-cache.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -432,7 +433,10 @@ export default async (req, res) => {
             username: req.session.monkeytype_username ?? process.env.MONKEYTYPE_USERNAME ?? null,
         };
 
-        const profile = await generateProfile(token, username, monkeyOptions);
+        // Reuse cached preview if available so we don't regenerate on every apply
+        const cachedProfile = previewCache.get(username);
+        const profile       = cachedProfile ?? await generateProfile(token, username, monkeyOptions);
+        if (!cachedProfile) previewCache.set(username, profile);
 
         if (dryRun) return res.json({ ok: true, dry_run: true, steps: profile.steps, bio: profile.bio });
 

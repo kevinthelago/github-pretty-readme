@@ -237,20 +237,39 @@
         </div>
 
         <div class="preview-tab-content active" id="preview-tab-readme">
-            <div class="gh-render">
-                <p id="preview-bio" style="margin-bottom:24px;color:var(--gh-muted);font-style:italic">Loading bio…</p>
+            <!-- Loading state (shown while /preview-readme is generating) -->
+            <div class="insights-gate" id="preview-loading" style="display:none">
+                <div class="loading-dots" style="margin-bottom:10px">Generating preview<span>.</span><span>.</span><span>.</span></div>
+                <p style="font-size:12px;color:var(--gh-muted)">Fetching repos, computing rating, and calling Gemini AI.<br>Takes 30–60 seconds. Subsequent loads are instant.</p>
+                <p id="preview-load-error" style="font-size:12px;color:var(--red);margin-top:10px;display:none"></p>
+            </div>
+            <!-- Content (shown after preview is ready) -->
+            <div class="gh-render" id="preview-content" style="display:none">
+                <p id="preview-bio" style="margin-bottom:24px"></p>
 
-                <div class="img-loading" id="preview-rating-ph">Loading developer rating…</div>
                 <a id="preview-rating-link" href="https://github.com/kevinthelago/kevinthelago/blob/main/DEVELOPER_INSIGHTS.md">
-                    <img id="preview-rating" src="/developer-rating" alt="Developer Rating"
+                    <img id="preview-rating" src="" alt="Developer Rating"
                          style="display:none;width:100%;border-radius:4px;margin-bottom:16px" />
                 </a>
 
-                <div class="img-loading" id="preview-tech-ph">Loading tech stack…</div>
+                <img id="preview-mt" src="" alt="Typing Speed"
+                     style="display:none;width:100%;border-radius:4px;margin-bottom:16px" />
+
                 <img id="preview-tech" src="" alt="Tech Stack"
                      style="display:none;width:100%;border-radius:4px;margin-bottom:16px" />
 
                 <div class="profile-badges" id="preview-badges"></div>
+            </div>
+            <!-- Fallback for unauthenticated demo -->
+            <div class="gh-render" id="preview-demo">
+                <p id="preview-bio-demo" style="margin-bottom:24px;color:var(--gh-muted);font-style:italic">Loading bio…</p>
+                <div class="img-loading" id="preview-rating-ph-demo">Loading developer rating…</div>
+                <img id="preview-rating-demo" src="/developer-rating" alt="Developer Rating"
+                     style="display:none;width:100%;border-radius:4px;margin-bottom:16px" />
+                <div class="img-loading" id="preview-tech-ph-demo">Loading tech stack…</div>
+                <img id="preview-tech-demo" src="" alt="Tech Stack"
+                     style="display:none;width:100%;border-radius:4px;margin-bottom:16px" />
+                <div class="profile-badges" id="preview-badges-demo"></div>
             </div>
         </div>
 
@@ -382,35 +401,31 @@ document.querySelectorAll('.preview-tab').forEach(tab => {
     });
 });
 
-// ── Profile bio ───────────────────────────────────────────────────────────────
-const bioEl = document.getElementById('preview-bio');
-fetch('/account-summary-md').then(r => r.ok ? r.text() : null).then(text => {
-    if (!text) return;
-    bioEl.textContent = text;
-    bioEl.style.color = bioEl.style.fontStyle = '';
-}).catch(() => { bioEl.textContent = ''; });
+// ── Unauthenticated demo preview (individual endpoints, fallback token) ───────
+const demoRatingImg = document.getElementById('preview-rating-demo');
+const demoRatingPh  = document.getElementById('preview-rating-ph-demo');
+demoRatingImg.onload  = () => { demoRatingPh.style.display = 'none'; demoRatingImg.style.display = 'block'; };
+demoRatingImg.onerror = () => { demoRatingPh.textContent = 'Preview unavailable'; };
 
-// ── Rating SVG ────────────────────────────────────────────────────────────────
-const ratingImg = document.getElementById('preview-rating');
-const ratingPh  = document.getElementById('preview-rating-ph');
-ratingImg.onload  = () => { ratingPh.style.display = 'none'; ratingImg.style.display = 'block'; };
-ratingImg.onerror = () => { ratingPh.textContent = 'Rating preview unavailable'; };
-
-// ── Tech grid ─────────────────────────────────────────────────────────────────
-const techImg = document.getElementById('preview-tech');
-const techPh  = document.getElementById('preview-tech-ph');
+const demoTechImg = document.getElementById('preview-tech-demo');
+const demoTechPh  = document.getElementById('preview-tech-ph-demo');
 fetch('/tech-categories?limit=8').then(r => r.json()).then(cats => {
     const chartable = cats.filter(c => c.count >= 3);
-    if (!chartable.length) { techPh.textContent = 'No tech data available'; return; }
-    const cols    = chartable.length <= 3 ? chartable.length : Math.ceil(Math.sqrt(chartable.length));
-    techImg.src   = `/tech-spider?type=grid&categories=${chartable.map(c => c.category).join(',')}&limit=8&columns=${cols}`;
-    techImg.onload  = () => { techPh.style.display = 'none'; techImg.style.display = 'block'; };
-    techImg.onerror = () => { techPh.textContent = 'Tech stack unavailable'; };
-}).catch(() => { techPh.textContent = 'Could not load tech data'; });
+    if (!chartable.length) { demoTechPh.textContent = 'No tech data'; return; }
+    const cols = chartable.length <= 3 ? chartable.length : Math.ceil(Math.sqrt(chartable.length));
+    demoTechImg.src = `/tech-spider?type=grid&categories=${chartable.map(c => c.category).join(',')}&limit=8&columns=${cols}`;
+    demoTechImg.onload  = () => { demoTechPh.style.display = 'none'; demoTechImg.style.display = 'block'; };
+    demoTechImg.onerror = () => { demoTechPh.textContent = 'Tech stack unavailable'; };
+}).catch(() => { demoTechPh.textContent = 'Could not load tech data'; });
 
-// ── Badges ────────────────────────────────────────────────────────────────────
+fetch('/account-summary-md').then(r => r.ok ? r.text() : null).then(text => {
+    if (!text) return;
+    const el = document.getElementById('preview-bio-demo');
+    el.textContent = text; el.style.color = el.style.fontStyle = '';
+}).catch(() => {});
+
 fetch('/tech-list?sort=frequency').then(r => r.json()).then(techs => {
-    const el = document.getElementById('preview-badges');
+    const el = document.getElementById('preview-badges-demo');
     if (!techs.length) return;
     el.innerHTML = techs.slice(0, 16).map(t => {
         const label = encodeURIComponent(t.language);
@@ -431,8 +446,19 @@ const insightsError   = document.getElementById('insights-error');
 document.getElementById('load-insights-btn').addEventListener('click', async () => {
     if (insightsLoaded) return;
     insightsGate.style.display    = 'none';
-    insightsLoading.style.display = 'block';
     insightsError.style.display   = 'none';
+
+    // Use cached insights from the preview response if available
+    if (window._insightsMd) {
+        insightsBody.innerHTML = typeof marked !== 'undefined'
+            ? marked.parse(window._insightsMd)
+            : '<pre style="white-space:pre-wrap;font-size:13px">' + window._insightsMd.replace(/</g, '&lt;') + '</pre>';
+        insightsBody.style.display = 'block';
+        insightsLoaded = true;
+        return;
+    }
+
+    insightsLoading.style.display = 'block';
     try {
         const r    = await fetch('/developer-rating-insights');
         const text = await r.text();
@@ -503,24 +529,36 @@ const runApply = async (allBtns) => {
     }
 };
 
+// ── SVG → data URI helper ─────────────────────────────────────────────────────
+const svgDataUri = (svg) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+
 // ── Auth state ────────────────────────────────────────────────────────────────
 fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
     if (!me) return;
     window._authUser = me.username;
 
+    // Switch to authenticated preview, hide demo
+    document.getElementById('preview-demo').style.display    = 'none';
+    document.getElementById('preview-loading').style.display = 'block';
+
     // Nav user chip
-    document.getElementById('nav-user').style.display  = 'flex';
-    document.getElementById('nav-avatar').src           = me.avatar;
+    document.getElementById('nav-user').style.display   = 'flex';
+    document.getElementById('nav-avatar').src            = me.avatar;
     document.getElementById('nav-username').textContent  = '@' + me.username;
 
-    // Update preview URL bar and rating link to user's own profile
+    // Update preview URL bar
     document.getElementById('preview-url').textContent  = `github.com/${me.username}/${me.username}`;
-    document.getElementById('preview-rating-link').href = `https://github.com/${me.username}/${me.username}/blob/main/DEVELOPER_INSIGHTS.md`;
+    document.getElementById('preview-rating-link').href =
+        `https://github.com/${me.username}/${me.username}/blob/main/DEVELOPER_INSIGHTS.md`;
 
-    // Replace hero CTA: Apply (primary) + Disconnect
+    // GitHub icon SVG path (reused in buttons)
+    const ghPath = `M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z`;
+
+    // Replace hero CTA: Apply (primary, disabled until preview ready) + Disconnect
     const applyBtn1 = document.createElement('button');
     applyBtn1.className = 'btn btn-primary';
-    applyBtn1.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> Apply to Profile`;
+    applyBtn1.disabled  = true;
+    applyBtn1.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="${ghPath}"/></svg> Apply to Profile`;
     const disconnectA = document.createElement('a');
     disconnectA.href = '/auth/logout';
     disconnectA.className = 'btn btn-secondary';
@@ -529,15 +567,100 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
     ctaRow.innerHTML = '';
     ctaRow.append(applyBtn1, disconnectA);
 
-    // Show apply section + settings
+    // Show apply section + settings (apply button stays disabled until preview ready)
     document.getElementById('apply-section').style.display    = 'block';
     document.getElementById('settings-section').style.display = 'block';
+    document.getElementById('apply-btn-2').disabled = true;
 
-    // Wire both apply buttons together
-    const applyBtn2  = document.getElementById('apply-btn-2');
+    // Wire both apply buttons
+    const applyBtn2    = document.getElementById('apply-btn-2');
     const allApplyBtns = [applyBtn1, applyBtn2];
     applyBtn1.addEventListener('click', () => runApply(allApplyBtns));
     applyBtn2.addEventListener('click', () => runApply(allApplyBtns));
+
+    // ── Load preview from /preview-readme ─────────────────────────────────────
+    const loadingEl   = document.getElementById('preview-loading');
+    const loadErrEl   = document.getElementById('preview-load-error');
+    const contentEl   = document.getElementById('preview-content');
+    const badgesEl    = document.getElementById('preview-badges');
+
+    const showPreview = (data) => {
+        // Bio
+        document.getElementById('preview-bio').textContent = data.bio;
+
+        // Rating SVG
+        const ratingImg = document.getElementById('preview-rating');
+        ratingImg.src   = svgDataUri(data.ratingSvg);
+        ratingImg.style.display = 'block';
+
+        // Monkeytype SVG
+        const mtImg = document.getElementById('preview-mt');
+        if (data.monkeytypeSvg) {
+            mtImg.src = svgDataUri(data.monkeytypeSvg);
+            mtImg.style.display = 'block';
+        } else {
+            mtImg.style.display = 'none';
+        }
+
+        // Tech grid SVG
+        const techImg = document.getElementById('preview-tech');
+        if (data.techGridSvg) {
+            techImg.src = svgDataUri(data.techGridSvg);
+            techImg.style.display = 'block';
+        } else {
+            techImg.style.display = 'none';
+        }
+
+        // Badges (fast, fetch independently)
+        fetch('/tech-list?sort=frequency').then(r => r.json()).then(techs => {
+            if (!techs.length) return;
+            badgesEl.innerHTML = techs.slice(0, 16).map(t => {
+                const label = encodeURIComponent(t.language);
+                const src   = t.slug && t.hex
+                    ? `https://img.shields.io/badge/${label}-${t.hex}?style=flat&logo=${t.slug}&logoColor=white`
+                    : `https://img.shields.io/badge/${label}-555555?style=flat`;
+                return `<img src="${src}" alt="${t.language}" height="20" />`;
+            }).join('');
+        }).catch(() => {});
+
+        // Switch visibility
+        loadingEl.style.display = 'none';
+        contentEl.style.display = 'block';
+
+        // Cache insights for the tab
+        window._insightsMd = data.insightsMd;
+        if (data.insightsMd && insightsLoaded) {
+            insightsBody.innerHTML = typeof marked !== 'undefined'
+                ? marked.parse(data.insightsMd)
+                : '<pre style="white-space:pre-wrap;font-size:13px">' + data.insightsMd.replace(/</g, '&lt;') + '</pre>';
+        }
+
+        // Enable apply buttons
+        allApplyBtns.forEach(b => { b.disabled = false; });
+    };
+
+    const fetchPreview = async (refresh = false) => {
+        loadingEl.style.display = 'block';
+        loadErrEl.style.display = 'none';
+        contentEl.style.display = 'none';
+        allApplyBtns.forEach(b => { b.disabled = true; });
+        try {
+            const url = '/preview-readme' + (refresh ? '?refresh=true' : '');
+            const r   = await fetch(url);
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error ?? r.statusText);
+            showPreview(data);
+        } catch (err) {
+            loadErrEl.textContent = '✗ ' + err.message + ' — ';
+            const retry = document.createElement('button');
+            retry.className = 'btn-sm'; retry.style.display = 'inline'; retry.textContent = 'Retry';
+            retry.addEventListener('click', () => fetchPreview());
+            loadErrEl.appendChild(retry);
+            loadErrEl.style.display = 'block';
+        }
+    };
+
+    fetchPreview();
 
     // ── Monkeytype ────────────────────────────────────────────────────────────
     const mtStatus    = document.getElementById('mt-status');
@@ -545,20 +668,6 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
     const mtConnected = document.getElementById('mt-connected');
     const mtLabel     = document.getElementById('mt-connected-label');
     const mtError     = document.getElementById('mt-error');
-
-    const injectMtPreview = () => {
-        let img = document.getElementById('preview-mt');
-        if (!img) {
-            img = document.createElement('img');
-            img.id = 'preview-mt';
-            img.alt = 'Typing Speed';
-            img.style.cssText = 'width:100%;border-radius:4px;margin-bottom:16px;display:none';
-            document.getElementById('preview-rating-link').after(img);
-        }
-        img.onerror = () => { img.style.display = 'none'; };
-        img.onload  = () => { img.style.display = 'block'; };
-        img.src = '/monkeytype?' + Date.now();
-    };
 
     const showMtConnected = (username) => {
         mtStatus.style.display    = 'inline';
@@ -570,11 +679,9 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         mtStatus.style.display    = 'none';
         mtForm.style.display      = 'block';
         mtConnected.style.display = 'none';
-        const img = document.getElementById('preview-mt');
-        if (img) img.style.display = 'none';
     };
 
-    if (me.monkeytype_connected) { showMtConnected(me.monkeytype_username); injectMtPreview(); }
+    if (me.monkeytype_connected) showMtConnected(me.monkeytype_username);
 
     document.getElementById('mt-save').addEventListener('click', async () => {
         const key  = document.getElementById('mt-key').value.trim();
@@ -590,7 +697,8 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
             });
             if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? 'Failed'); }
             showMtConnected(user || null);
-            injectMtPreview();
+            // Refresh preview so Monkeytype chart is included
+            fetchPreview(true);
         } catch (err) {
             mtError.textContent = '✗ ' + err.message;
             mtError.style.display = 'block';
@@ -602,6 +710,8 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
     document.getElementById('mt-disconnect').addEventListener('click', async () => {
         await fetch('/monkeytype/disconnect', { method: 'POST' });
         showMtDisconnected();
+        // Refresh preview so Monkeytype chart is removed
+        fetchPreview(true);
     });
 
     // ── Repo Improvements ─────────────────────────────────────────────────────

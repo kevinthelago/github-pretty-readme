@@ -11,6 +11,7 @@ import improveTopics          from './api/improve-topics.js';
 import improveDescriptions    from './api/improve-descriptions.js';
 import monkeytype             from './api/monkeytype.js';
 import applyReadme            from './api/apply-readme.js';
+import previewReadme          from './api/preview-readme.js';
 import { authGithub, authCallback, authLogout, authMe, requireAuth } from './api/auth.js';
 import { monkeytypeConnect, monkeytypeDisconnect }                   from './api/monkeytype-connect.js';
 import express                from 'express';
@@ -41,8 +42,9 @@ app.get('/auth/callback', authCallback);
 app.get('/auth/logout',   authLogout);
 app.get('/auth/me',       authMe);
 
-// Profile update
-app.get('/apply-readme', requireAuth, applyReadme);
+// Profile preview (generates + caches all assets) and apply
+app.get('/preview-readme', requireAuth, previewReadme);
+app.get('/apply-readme',   requireAuth, applyReadme);
 
 // Monkeytype session connect/disconnect
 app.post('/monkeytype/connect',    monkeytypeConnect);
