@@ -566,7 +566,7 @@ export default async (req, res) => {
         await putFile(token, repo, README_PATH, readme, readmeFile.sha, 'chore: update profile summary and charts');
         await pushAsset(token, repo, 'DEVELOPER_INSIGHTS.md', profile.insightsMd);
 
-        const serviceUrl  = process.env.BASE_URL ?? 'https://github-pretty-readme.azurewebsites.net';
+        const serviceUrl  = process.env.BASE_URL ?? 'http://localhost:8080';
         const workflowYml = `name: Refresh GitHub Profile
 on:
   schedule:
