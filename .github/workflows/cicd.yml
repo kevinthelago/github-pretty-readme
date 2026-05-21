@@ -71,6 +71,15 @@ jobs:
           REGION="${{ vars.GCP_REGION }}"
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
+      - name: Enable required GCP APIs
+        run: |
+          gcloud services enable \
+            secretmanager.googleapis.com \
+            run.googleapis.com \
+            artifactregistry.googleapis.com \
+            --project="${{ vars.GCP_PROJECT_ID }}" --quiet
+          echo "✓ APIs enabled"
+
       - name: Ensure Artifact Registry repository exists
         env:
           REGION:  ${{ vars.GCP_REGION }}
@@ -106,6 +115,7 @@ jobs:
           service: github-pretty-readme
           region:  ${{ vars.GCP_REGION }}
           image:   ${{ env.IMAGE }}:${{ github.sha }}
+          flags:   --allow-unauthenticated
           secrets: |
             GITHUB_TOKEN=GH_PAT:latest
             GOOGLE_AI_STUDIO_KEY=GOOGLE_AI_STUDIO_KEY:latest
