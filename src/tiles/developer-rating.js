@@ -7,7 +7,8 @@ const BASE_DIMENSIONS = [
     { key: 'activity',    label: 'Activity',    color: '#c3e88d' },
     { key: 'impact',      label: 'Impact',      color: '#f78c6c' },
 ];
-const ENG_DIMENSION = { key: 'engineering', label: 'Engineering', color: '#ffcb6b' };
+const ENG_DIMENSION = { key: 'engineering',  label: 'Engineering',   color: '#ffcb6b' };
+const CQ_DIMENSION  = { key: 'codeQuality',  label: 'Code Quality',  color: '#ff5572' };
 
 const W = 800, H = 280;
 const PAD = 28;
@@ -22,7 +23,7 @@ const BARS_TOP = 48;
  * Renders an 800x280 SVG score card showing the developer rating dimensions.
  * Adapts to light/dark mode via prefers-color-scheme CSS in the SVG.
  *
- * @param {{ breadth, depth, diversity, activity, impact, overall, tier, engineering? }} rating
+ * @param {{ breadth, depth, diversity, activity, impact, overall, tier, engineering?, codeQuality? }} rating
  */
 const renderDeveloperRating = (rating) => {
     const { overall, tier } = rating;
@@ -43,9 +44,11 @@ const renderDeveloperRating = (rating) => {
 
     const divider = `<line x1="${SCORE_W + PAD}" y1="${PAD}" x2="${SCORE_W + PAD}" y2="${H - PAD}" style="stroke:var(--fg08)" stroke-width="1"/>`;
 
-    const DIMENSIONS = rating.engineering != null
-        ? [...BASE_DIMENSIONS, ENG_DIMENSION]
-        : BASE_DIMENSIONS;
+    const DIMENSIONS = [
+        ...BASE_DIMENSIONS,
+        ...(rating.engineering  != null ? [ENG_DIMENSION] : []),
+        ...(rating.codeQuality  != null ? [CQ_DIMENSION]  : []),
+    ];
 
     const bars = DIMENSIONS.map(({ key, label, color }, i) => {
         const score = rating[key];

@@ -118,12 +118,15 @@ const generateRecommendations = async (repos, rating, insights) => {
     const engLine   = rating.engineering != null
         ? `\n- Engineering ${rating.engineering}/100 (CI: ${insights.engineering?.ciCount ?? 0}/${insights.engineering?.total ?? 0} repos, deployments: ${insights.engineering?.deploymentCount ?? 0}/${insights.engineering?.total ?? 0})`
         : '';
+    const cqLine    = rating.codeQuality != null
+        ? `\n- Code Quality ${rating.codeQuality}/100 (average across ${insights.codeQuality?.scannedCount ?? 0} scanned repo(s))`
+        : '';
 
     const prompt = `You are a senior software engineer reviewing a developer's GitHub profile and giving specific, actionable growth advice.
 
 Developer profile:
 - Overall score: ${rating.overall}/100 (${rating.tier.label} tier)
-- Breadth ${rating.breadth}/100 · Depth ${rating.depth}/100 · Diversity ${rating.diversity}/100 · Activity ${rating.activity}/100 · Impact ${rating.impact}/100${engLine}
+- Breadth ${rating.breadth}/100 · Depth ${rating.depth}/100 · Diversity ${rating.diversity}/100 · Activity ${rating.activity}/100 · Impact ${rating.impact}/100${engLine}${cqLine}
 - Languages by repo count: ${topLangs || 'none detected'}
 - Topics used across repos: ${allTopics}
 - Tech categories covered: ${coveredCategories.join(', ') || 'none'}
@@ -186,9 +189,39 @@ const renderEngineering = (score, details) => {
     return lines.join('\n');
 };
 
+const renderCodeQuality = (score, details) => {
+    if (!details) return null;
+    const { repos: scanRepos, scannedCount } = details;
+    const lines = [
+        `## Code Quality — ${bar(score)}`,
+        '',
+        `**What it measures:** Average code quality across ${scannedCount} scanned repo(s), graded on testing, documentation, tooling, CI/CD, security, and structure.`,
+        '',
+        '| Repository | Score | Grade | Testing | Docs | Tooling | CI | Security | Structure |',
+        '|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|',
+        ...scanRepos.map(r =>
+            `| \`${r.repo}\` | ${r.overall}/100 | **${r.grade}** | ${r.testing ?? '—'} | ${r.documentation ?? '—'} | ${r.tooling ?? '—'} | ${r.ci ?? '—'} | ${r.security ?? '—'} | ${r.structure ?? '—'} |`
+        ),
+    ];
+    const weak = scanRepos.filter(r => r.overall < 60);
+    if (weak.length) {
+        lines.push('', '**How to improve:**');
+        weak.forEach(r => {
+            const dims = [
+                ['testing', r.testing], ['documentation', r.documentation], ['tooling', r.tooling],
+                ['CI/CD', r.ci], ['security', r.security], ['structure', r.structure],
+            ].filter(([, s]) => s !== null && s < 60).sort(([, a], [, b]) => a - b).slice(0, 2);
+            if (dims.length) lines.push(`- \`${r.repo}\`: weakest in ${dims.map(([k]) => k).join(' and ')} — see \`SCORE.md\` in that repo for details`);
+        });
+    } else {
+        lines.push('', '> Strong code quality across all scanned repositories.');
+    }
+    return lines.join('\n');
+};
+
 const renderInsights = (rating, insights, repos, recommendations = '') => {
     const date = new Date().toISOString().slice(0, 10);
-    const { breadth, depth, diversity, activity, impact, engineering } = insights;
+    const { breadth, depth, diversity, activity, impact, engineering, codeQuality } = insights;
 
     const breadthMd = (() => {
         const { languages, coveredCategories, missingCategories } = breadth;
@@ -321,15 +354,26 @@ const renderInsights = (rating, insights, repos, recommendations = '') => {
         return lines.join('\n');
     })();
 
-    const hasEng = rating.engineering != null;
+    const hasEng     = rating.engineering  != null;
+    const hasQuality = rating.codeQuality  != null;
+
+    // Compute actual effective weights (mirrors computeRating logic)
+    const BASE_W    = { breadth: 0.17, depth: 0.22, diversity: 0.17, activity: 0.18, impact: 0.13 };
+    const ENG_W     = 0.13, CQ_W = 0.13;
+    const optW      = (hasEng ? ENG_W : 0) + (hasQuality ? CQ_W : 0);
+    const baseScale = 1 - optW;
+    const baseTotal = Object.values(BASE_W).reduce((a, b) => a + b, 0);
+    const wpct      = (w) => `${Math.round((w / baseTotal) * baseScale * 100)}%`;
+
     const weightTable = [
-        '| Dimension   | Score | Weight |', '|---|---|---|',
-        `| Breadth     | ${rating.breadth}/100   | ${hasEng ? '17%' : '20%'} |`,
-        `| Depth       | ${rating.depth}/100     | ${hasEng ? '22%' : '25%'} |`,
-        `| Diversity   | ${rating.diversity}/100 | ${hasEng ? '17%' : '20%'} |`,
-        `| Activity    | ${rating.activity}/100  | ${hasEng ? '18%' : '21%'} |`,
-        `| Impact      | ${rating.impact}/100    | ${hasEng ? '13%' : '14%'} |`,
-        ...(hasEng ? [`| Engineering | ${rating.engineering}/100 | 13% |`] : []),
+        '| Dimension    | Score | Weight |', '|---|---|---|',
+        `| Breadth      | ${rating.breadth}/100      | ${wpct(BASE_W.breadth)} |`,
+        `| Depth        | ${rating.depth}/100        | ${wpct(BASE_W.depth)} |`,
+        `| Diversity    | ${rating.diversity}/100    | ${wpct(BASE_W.diversity)} |`,
+        `| Activity     | ${rating.activity}/100     | ${wpct(BASE_W.activity)} |`,
+        `| Impact       | ${rating.impact}/100       | ${wpct(BASE_W.impact)} |`,
+        ...(hasEng     ? [`| Engineering  | ${rating.engineering}/100  | ${Math.round(ENG_W * 100)}% |`]  : []),
+        ...(hasQuality ? [`| Code Quality | ${rating.codeQuality}/100  | ${Math.round(CQ_W  * 100)}% |`] : []),
     ].join('\n');
 
     const parts = [
@@ -343,6 +387,11 @@ const renderInsights = (rating, insights, repos, recommendations = '') => {
     if (hasEng) {
         const engMd = renderEngineering(rating.engineering, engineering);
         if (engMd) parts.push('', '---', '', engMd);
+    }
+
+    if (hasQuality) {
+        const cqMd = renderCodeQuality(rating.codeQuality, codeQuality);
+        if (cqMd) parts.push('', '---', '', cqMd);
     }
 
     if (recommendations) parts.push('', '---', '', recommendations);
