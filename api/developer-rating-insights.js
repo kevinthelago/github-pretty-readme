@@ -1,5 +1,9 @@
 import { getAllRepos } from '../src/github/repos.js';
 import { computeRating, computeInsights } from '../src/github/developer-rating.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
+const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
 const ALL_CATEGORIES = ['languages', 'frameworks', 'cloud', 'ai', 'databases', 'devops'];
 
@@ -155,6 +159,51 @@ const renderImpact = (score, details) => {
     return lines.join('\n');
 };
 
+const generateRecommendations = async (repos, rating, insights) => {
+    const { languages, coveredCategories, missingCategories } = insights.breadth;
+    const topImpact = insights.impact.slice(0, 5).map(r => `${r.name} (${r.stars}★)`).join(', ') || 'none';
+    const langFreq  = {};
+    repos.forEach(r => { if (r.language) langFreq[r.language] = (langFreq[r.language] || 0) + 1; });
+    const topLangs  = Object.entries(langFreq).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([l, n]) => `${l} (${n} repos)`).join(', ');
+    const allTopics = [...new Set(repos.flatMap(r => r.topics ?? []))].slice(0, 30).join(', ') || 'none';
+
+    const prompt = `You are a senior software engineer reviewing a developer's GitHub profile and giving specific, actionable growth advice.
+
+Developer profile:
+- Overall score: ${rating.overall}/100 (${rating.tier.label} tier)
+- Breadth ${rating.breadth}/100 · Depth ${rating.depth}/100 · Diversity ${rating.diversity}/100 · Activity ${rating.activity}/100 · Impact ${rating.impact}/100
+- Languages by repo count: ${topLangs || 'none detected'}
+- Topics used across repos: ${allTopics}
+- Tech categories covered: ${coveredCategories.join(', ') || 'none'}
+- Missing categories: ${missingCategories.join(', ') || 'none'}
+- Top repos by impact: ${topImpact}
+- Total repos: ${repos.length}
+
+Provide the following three sections as GitHub-flavored markdown. Be specific to their actual detected stack — use real library and framework names, not generic category names. Do not repeat the score breakdown already shown above.
+
+## Technologies to Explore
+
+List 4–6 specific technologies this developer should learn next. For each one, write 1–2 sentences explaining why it complements their existing stack and what problem it solves for them specifically. Ground every recommendation in what you can see in their topics and languages.
+
+## Project Ideas
+
+Suggest 3 concrete project ideas that would stretch their skills. For each idea:
+- Give it a short name
+- List the specific tech stack (use their existing languages where possible, add one new technology)
+- Write 2–3 sentences on what it demonstrates and why it would strengthen their portfolio
+
+## Growth Direction
+
+Write one focused paragraph on the single most impactful area this developer should invest in over the next 3–6 months. Base it on the weakest dimension score and the most visible gap in their stack. Be direct and specific.`;
+
+    try {
+        const result = await model.generateContent(prompt);
+        return result.response.text().trim();
+    } catch {
+        return '';
+    }
+};
+
 export default async (req, res) => {
     res.setHeader('Content-Type', 'text/markdown');
 
@@ -167,7 +216,9 @@ export default async (req, res) => {
         const insights = computeInsights(repos);
         const date     = new Date().toISOString().slice(0, 10);
 
-        const md = [
+        const recommendations = await generateRecommendations(repos, rating, insights);
+
+        const parts = [
             `# Developer Score Insights`,
             `_Generated ${date} · ${repos.length} repositories analysed_`,
             '',
@@ -200,9 +251,11 @@ export default async (req, res) => {
             '---',
             '',
             renderImpact(rating.impact, insights.impact),
-        ].join('\n');
+        ];
 
-        return res.send(md);
+        if (recommendations) parts.push('', '---', '', recommendations);
+
+        return res.send(parts.join('\n'));
     } catch (err) {
         return res.status(500).send(err.message);
     }
