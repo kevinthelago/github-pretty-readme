@@ -21,6 +21,7 @@ if (!PROFILE_REPO_TOKEN) {
 
 const PORT = process.env.port || 8080;
 const BASE = `http://localhost:${PORT}`;
+const MONKEYTYPE_USERNAME = process.env.MONKEYTYPE_USERNAME;
 const REPO = `${username}/${username}`;
 const README_PATH = 'README.md';
 const MIN_TECHS_FOR_CHART = 3;
@@ -98,12 +99,12 @@ const luminance = (hex) => {
 
 const buildBadge = ({ language, slug, hex }) => {
     const label = encodeURIComponent(language);
-    const repoUrl = `https://github.com/${username}?tab=repositories&language=${encodeURIComponent(language.toLowerCase())}`;
+    const searchUrl = `https://github.com/search?q=user%3A${username}+language%3A${encodeURIComponent(language)}&type=repositories`;
     if (slug && hex) {
         const logoColor = luminance(hex) > 0.6 ? 'black' : 'white';
-        return `[![${language}](https://img.shields.io/badge/${label}-${hex}?style=flat&logo=${slug}&logoColor=${logoColor})](${repoUrl})`;
+        return `[![${language}](https://img.shields.io/badge/${label}-${hex}?style=flat&logo=${slug}&logoColor=${logoColor})](${searchUrl})`;
     }
-    return `[![${language}](https://img.shields.io/badge/${label}-555555?style=flat)](${repoUrl})`;
+    return `[![${language}](https://img.shields.io/badge/${label}-555555?style=flat)](${searchUrl})`;
 };
 
 // ── Sections ─────────────────────────────────────────────────────────────────
@@ -132,7 +133,25 @@ const SECTIONS = [
             if (!res.ok) throw new Error(`/developer-rating → ${res.status}`);
             const svg = await res.text();
             await pushAsset('assets/developer-rating.svg', svg);
-            return '\n<img src="./assets/developer-rating.svg" width="800" height="280" alt="Developer Rating" />\n';
+            return '\n<a href="https://github.com/' + REPO + '/blob/main/DEVELOPER_INSIGHTS.md"><img src="./assets/developer-rating.svg" width="100%" alt="Developer Rating" /></a>\n';
+        },
+    },
+    {
+        key: 'monkeytype',
+        start: '<!-- monkeytype-start -->',
+        end: '<!-- monkeytype-end -->',
+        async fetch() {
+            console.log('\nFetching Monkeytype stats…');
+            const res = await fetch(`${BASE}/monkeytype`);
+            if (!res.ok) throw new Error(`/monkeytype → ${res.status}`);
+            const svg = await res.text();
+            await pushAsset('assets/monkeytype.svg', svg);
+            console.log('  ✓  monkeytype');
+            const img = '<img src="./assets/monkeytype.svg" width="100%" alt="Typing Speed" />';
+            const linked = MONKEYTYPE_USERNAME
+                ? `<a href="https://monkeytype.com/profile/${MONKEYTYPE_USERNAME}">${img}</a>`
+                : img;
+            return '\n' + linked + '\n';
         },
     },
     {
