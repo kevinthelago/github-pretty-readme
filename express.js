@@ -10,6 +10,8 @@ import techCategories         from './api/tech-categories.js';
 import improveTopics          from './api/improve-topics.js';
 import improveDescriptions    from './api/improve-descriptions.js';
 import repoScan               from './api/repo-scan.js';
+import repos                  from './api/repos.js';
+import repoApply              from './api/repo-apply.js';
 import monkeytype             from './api/monkeytype.js';
 import applyReadme            from './api/apply-readme.js';
 import previewReadme          from './api/preview-readme.js';
@@ -64,6 +66,8 @@ app.get('/tech-categories',          techCategories);
 app.get('/improve-topics',           improveTopics);
 app.get('/improve-descriptions',     improveDescriptions);
 app.get('/repo-scan',                requireAuth, repoScan);
+app.get('/repos',                    requireAuth, repos);
+app.get('/repo-apply',               requireAuth, repoApply);
 app.get('/monkeytype',               monkeytype);
 
 app.listen(process.env.PORT || process.env.port || 8080);
