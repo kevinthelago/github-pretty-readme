@@ -171,6 +171,42 @@ const engineeringDetails = (metrics) => {
     };
 };
 
+// ── Code Quality dimension (from repo scan cache) ─────────────────────────────
+
+/**
+ * Averages per-repo codeQuality.overall scores from scan cache data.
+ * Returns null when no scan data is available so the weight is dropped.
+ *
+ * @param {object} scanData  { repoName: analysisResult } from scanCache.getAll()
+ */
+const scoreCodeQuality = (scanData) => {
+    if (!scanData || Object.keys(scanData).length === 0) return null;
+    const scores = Object.values(scanData)
+        .map(a => a?.codeQuality?.overall)
+        .filter(s => typeof s === 'number');
+    if (!scores.length) return null;
+    return clamp(Math.round(scores.reduce((a, b) => a + b, 0) / scores.length));
+};
+
+const codeQualityDetails = (scanData) => {
+    if (!scanData || Object.keys(scanData).length === 0) return null;
+    const entries = Object.entries(scanData)
+        .map(([repo, a]) => ({
+            repo,
+            overall:       a?.codeQuality?.overall ?? null,
+            grade:         a?.codeQuality?.grade   ?? null,
+            testing:       a?.codeQuality?.testing?.score       ?? null,
+            documentation: a?.codeQuality?.documentation?.score ?? null,
+            tooling:       a?.codeQuality?.tooling?.score       ?? null,
+            ci:            a?.codeQuality?.ci?.score            ?? null,
+            security:      a?.codeQuality?.security?.score      ?? null,
+            structure:     a?.codeQuality?.structure?.score     ?? null,
+        }))
+        .filter(e => e.overall !== null)
+        .sort((a, b) => a.overall - b.overall);
+    return entries.length ? { repos: entries, scannedCount: entries.length } : null;
+};
+
 // ── Tiers & weights ───────────────────────────────────────────────────────────
 
 const TIER_THRESHOLDS = [
@@ -183,13 +219,18 @@ const TIER_THRESHOLDS = [
 
 const tier = (score) => TIER_THRESHOLDS.find(t => score >= t.min);
 
-// Weights sum to 1.0 with engineering; without it the five base weights are renormalised.
-const BASE_WEIGHTS        = { breadth: 0.17, depth: 0.22, diversity: 0.17, activity: 0.18, impact: 0.13 };
-const ENGINEERING_WEIGHT  = 0.13;
+// Base weights (5 dimensions, no engineering, no codeQuality).
+// When optional dimensions are present they each contribute their own weight
+// and the base weights are scaled down proportionally so the total stays 1.0.
+const BASE_WEIGHTS       = { breadth: 0.17, depth: 0.22, diversity: 0.17, activity: 0.18, impact: 0.13 };
+const ENGINEERING_WEIGHT = 0.13;
+const CODE_QUALITY_WEIGHT = 0.13;
 
-const computeRating = (repos, workflowMetrics = null) => {
-    const engineering = scoreEngineering(workflowMetrics);
-    const hasEng      = engineering !== null;
+const computeRating = (repos, workflowMetrics = null, scanData = null) => {
+    const engineering  = scoreEngineering(workflowMetrics);
+    const codeQuality  = scoreCodeQuality(scanData);
+    const hasEng       = engineering  !== null;
+    const hasQuality   = codeQuality  !== null;
 
     const dimensions = {
         breadth:   scoreBreadth(repos),
@@ -197,37 +238,41 @@ const computeRating = (repos, workflowMetrics = null) => {
         diversity: scoreDiversity(repos),
         activity:  scoreActivity(repos),
         impact:    scoreImpact(repos),
-        ...(hasEng ? { engineering } : {}),
+        ...(hasEng     ? { engineering }  : {}),
+        ...(hasQuality ? { codeQuality }  : {}),
     };
 
-    let overall;
-    if (hasEng) {
-        overall = Math.round(
-            Object.entries(BASE_WEIGHTS).reduce((sum, [k, w]) => sum + dimensions[k] * w, 0) +
-            engineering * ENGINEERING_WEIGHT
-        );
-    } else {
-        // Renormalise the five base weights to sum to 1
-        const total = Object.values(BASE_WEIGHTS).reduce((a, b) => a + b, 0);
-        overall = Math.round(
-            Object.entries(BASE_WEIGHTS).reduce((sum, [k, w]) => sum + dimensions[k] * (w / total), 0)
-        );
-    }
+    // Scale the five base weights down to make room for optional dimensions
+    const optionalWeight = (hasEng ? ENGINEERING_WEIGHT : 0) + (hasQuality ? CODE_QUALITY_WEIGHT : 0);
+    const baseScale      = 1 - optionalWeight;
+    const baseTotal      = Object.values(BASE_WEIGHTS).reduce((a, b) => a + b, 0);
+
+    const overall = Math.round(
+        Object.entries(BASE_WEIGHTS).reduce(
+            (sum, [k, w]) => sum + dimensions[k] * (w / baseTotal) * baseScale, 0
+        ) +
+        (hasEng     ? engineering * ENGINEERING_WEIGHT  : 0) +
+        (hasQuality ? codeQuality * CODE_QUALITY_WEIGHT : 0)
+    );
 
     return { ...dimensions, overall, tier: tier(overall) };
 };
 
 /**
  * Returns per-dimension detail data for generating the insights report.
- * Pass workflowMetrics (from fetchWorkflowMetrics) to include engineering details.
+ *
+ * @param {object[]} repos
+ * @param {object[]|null} workflowMetrics
+ * @param {object|null}   scanData  { repoName: analysisResult }
  */
-const computeInsights = (repos, workflowMetrics = null) => ({
-    breadth:     breadthDetails(repos),
-    depth:       depthDetails(repos),
-    diversity:   diversityDetails(repos),
-    activity:    activityDetails(repos),
-    impact:      impactDetails(repos),
-    engineering: engineeringDetails(workflowMetrics),
+const computeInsights = (repos, workflowMetrics = null, scanData = null) => ({
+    breadth:      breadthDetails(repos),
+    depth:        depthDetails(repos),
+    diversity:    diversityDetails(repos),
+    activity:     activityDetails(repos),
+    impact:       impactDetails(repos),
+    engineering:  engineeringDetails(workflowMetrics),
+    codeQuality:  codeQualityDetails(scanData),
 });
 
 export { computeRating, computeInsights };

@@ -9,6 +9,7 @@ import techSpider             from './api/tech-spider.js';
 import techCategories         from './api/tech-categories.js';
 import improveTopics          from './api/improve-topics.js';
 import improveDescriptions    from './api/improve-descriptions.js';
+import repoScan               from './api/repo-scan.js';
 import monkeytype             from './api/monkeytype.js';
 import applyReadme            from './api/apply-readme.js';
 import previewReadme          from './api/preview-readme.js';
@@ -62,6 +63,7 @@ app.get('/tech-spider',              techSpider);
 app.get('/tech-categories',          techCategories);
 app.get('/improve-topics',           improveTopics);
 app.get('/improve-descriptions',     improveDescriptions);
+app.get('/repo-scan',                requireAuth, repoScan);
 app.get('/monkeytype',               monkeytype);
 
 app.listen(process.env.PORT || process.env.port || 8080);

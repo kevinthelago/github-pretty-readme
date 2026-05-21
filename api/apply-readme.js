@@ -7,6 +7,7 @@ import { renderTechGrid }                   from '../src/tiles/tech-grid.js';
 import { renderMonkeytypeChart }            from '../src/tiles/monkeytype-chart.js';
 import { GoogleGenerativeAI }              from '@google/generative-ai';
 import { previewCache }                    from '../src/preview-cache.js';
+import { scanCache }                      from '../src/scan-cache.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -371,8 +372,11 @@ export async function generateProfile(token, username, monkeyOptions = {}) {
     const bio       = bioResult.response.text().trim();
 
     log('Computing developer rating…');
-    const rating    = computeRating(repos, metrics);
-    const insights  = computeInsights(repos, metrics);
+    const scanData  = scanCache.getAll(username);
+    const hasScanData = Object.keys(scanData).length > 0;
+    if (hasScanData) log(`Using code quality data from ${Object.keys(scanData).length} scanned repo(s)…`);
+    const rating    = computeRating(repos, metrics, hasScanData ? scanData : null);
+    const insights  = computeInsights(repos, metrics, hasScanData ? scanData : null);
     const ratingSvg = renderDeveloperRating(rating);
 
     log('Building tech grid…');
