@@ -18,7 +18,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 app.use(express.static(join(__dirname, 'public')));
-app.listen(process.env.port || 8080);
+app.listen(process.env.PORT || process.env.port || 8080);
 
 app.get('/account-summary', accountSummary);
 app.get('/account-summary-md', accountSummaryMd);
