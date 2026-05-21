@@ -7,6 +7,8 @@ import techList from './api/tech-list.js';
 import techChart from './api/tech-chart.js';
 import techSpider from './api/tech-spider.js';
 import techCategories from './api/tech-categories.js';
+import improveTopics from './api/improve-topics.js';
+import improveDescriptions from './api/improve-descriptions.js';
 import express from 'express';
 
 const app = express();
@@ -21,3 +23,5 @@ app.get('/tech-list', techList);
 app.get('/tech-chart', techChart);
 app.get('/tech-spider', techSpider);
 app.get('/tech-categories', techCategories);
+app.get('/improve-topics', improveTopics);
+app.get('/improve-descriptions', improveDescriptions);

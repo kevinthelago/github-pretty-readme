@@ -1,0 +1,83 @@
+name: Daily repo improvement
+
+on:
+  schedule:
+    - cron: '0 5 * * *'   # 5am UTC daily
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview changes without applying them'
+        type: boolean
+        default: false
+      passes:
+        description: 'Number of improvement + re-grade cycles'
+        type: number
+        default: 1
+
+jobs:
+  improve:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - run: npm install
+
+      - name: Start server
+        env:
+          GOOGLE_AI_STUDIO_KEY: ${{ secrets.GOOGLE_AI_STUDIO_KEY }}
+          AI_PROMPT: ${{ secrets.AI_PROMPT }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          port: 8080
+        run: node express.js > /tmp/server.log 2>&1 &
+
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 20); do
+            curl -sf "http://localhost:8080/developer-rating" > /dev/null && echo "Server ready" && break
+            sleep 2
+          done
+          curl -sf "http://localhost:8080/developer-rating" > /dev/null || (echo "=== Server log ===" && cat /tmp/server.log && exit 1)
+
+      - name: Grade (before)
+        id: grade_before
+        run: |
+          RATING=$(curl -s "http://localhost:8080/developer-rating-insights" | head -5)
+          echo "rating_before<<EOF" >> $GITHUB_OUTPUT
+          echo "$RATING" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "=== Rating before improvement ==="
+          curl -s "http://localhost:8080/developer-rating-insights" | head -20
+
+      - name: Improve topics
+        run: |
+          DRY=${{ github.event.inputs.dry_run == 'true' && 'true' || 'false' }}
+          echo "=== Improving topics (dry_run=$DRY) ==="
+          curl -s "http://localhost:8080/improve-topics?dry_run=$DRY" | \
+            node -e "const d=require('fs').readFileSync('/dev/stdin','utf8'); const j=JSON.parse(d); console.log(\`Checked: \${j.repos_checked} | Updated: \${j.repos_updated} | Errors: \${j.errors}\`); j.updated?.forEach(r => console.log(\`  ✓ \${r.repo}: \${r.topics?.join(', ')}\`)); j.errors_detail?.forEach(e => console.log(\`  ✗ \${e.repo}: \${e.error}\`));"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
+      - name: Improve descriptions
+        run: |
+          DRY=${{ github.event.inputs.dry_run == 'true' && 'true' || 'false' }}
+          echo "=== Improving descriptions (dry_run=$DRY) ==="
+          curl -s "http://localhost:8080/improve-descriptions?dry_run=$DRY" | \
+            node -e "const d=require('fs').readFileSync('/dev/stdin','utf8'); const j=JSON.parse(d); console.log(\`Checked: \${j.repos_checked} | Updated: \${j.repos_updated} | Errors: \${j.errors}\`); j.updated?.forEach(r => console.log(\`  ✓ \${r.repo}: \${r.description}\`)); j.errors_detail?.forEach(e => console.log(\`  ✗ \${e.repo}: \${e.error}\`));"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
+      - name: Grade (after) and update profile
+        env:
+          PROFILE_REPO_TOKEN: ${{ secrets.PROFILE_REPO_TOKEN }}
+          port: 8080
+        run: |
+          echo "=== Rating after improvement ==="
+          curl -s "http://localhost:8080/developer-rating-insights" | head -20
+          echo ""
+          echo "=== Updating profile README ==="
+          node scripts/update-profile.mjs kevinthelago

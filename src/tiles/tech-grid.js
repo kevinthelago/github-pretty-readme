@@ -1,6 +1,6 @@
 import { renderSpiderCore } from './tech-spider.js';
 
-const CANVAS_W = 800;
+const CELL_W = 400; // each chart cell stays fixed-width regardless of column count
 
 /**
  * Renders multiple spider charts in a grid layout as a single SVG.
@@ -11,11 +11,12 @@ const CANVAS_W = 800;
  * @param {{ columns?: number }} opts
  */
 const renderTechGrid = (series, _title, { columns = 2 } = {}) => {
-    const cols  = Math.min(columns, series.length) || 1;
-    const rows  = Math.ceil(series.length / cols);
-    const cellW = CANVAS_W / cols;
-    const cellH = Math.round(cellW * 1.05);   // slightly taller than wide
-    const H     = rows * cellH;
+    const cols    = Math.min(columns, series.length) || 1;
+    const rows    = Math.ceil(series.length / cols);
+    const cellW   = CELL_W;
+    const CANVAS_W = cols * cellW;
+    const cellH   = Math.round(cellW * 1.05);   // slightly taller than wide
+    const H       = rows * cellH;
 
     // Scale layout params proportionally to cell size
     const R          = Math.round(cellW * 0.30);

@@ -150,7 +150,9 @@ const SECTIONS = [
             if (chartable.length === 0) return '\n_No tech data found._\n';
 
             const categoryList = chartable.map(c => c.category).join(',');
-            const columns = Math.min(chartable.length, 2);
+            const columns = chartable.length <= 3
+                ? chartable.length
+                : Math.ceil(Math.sqrt(chartable.length));
             const url = `${BASE}/tech-spider?type=grid&categories=${categoryList}&limit=8&columns=${columns}`;
             console.log('\nFetching tech grid…');
             const res = await fetch(url);
@@ -159,10 +161,12 @@ const SECTIONS = [
             await pushAsset('assets/tech-grid.svg', svg);
             console.log(`  ✓  tech-grid (${chartable.length} categories, ${columns} columns)`);
 
-            const cellH = Math.round((800 / columns) * 1.05);
+            const cellW = 400;
+            const cellH = Math.round(cellW * 1.05);
             const rows = Math.ceil(chartable.length / columns);
+            const totalW = columns * cellW;
             const totalH = rows * cellH;
-            return `\n<img src="./assets/tech-grid.svg" width="800" height="${totalH}" alt="Tech Stack" />\n`;
+            return `\n<img src="./assets/tech-grid.svg" width="${totalW}" height="${totalH}" alt="Tech Stack" />\n`;
         },
     },
     {
