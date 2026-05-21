@@ -14,24 +14,23 @@ import applyReadme            from './api/apply-readme.js';
 import { authGithub, authCallback, authLogout, authMe, requireAuth } from './api/auth.js';
 import { monkeytypeConnect, monkeytypeDisconnect }                   from './api/monkeytype-connect.js';
 import express                from 'express';
-import session                from 'express-session';
+import cookieSession          from 'cookie-session';
 import { fileURLToPath }      from 'url';
 import { dirname, join }      from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(session({
-    secret:            process.env.SESSION_SECRET ?? 'dev-secret-change-in-production',
-    resave:            false,
-    saveUninitialized: false,
-    cookie: {
-        httpOnly: true,
-        secure:   process.env.NODE_ENV === 'production',
-        maxAge:   7 * 24 * 60 * 60 * 1000, // 7 days
-    },
+app.use(cookieSession({
+    name:    'session',
+    keys:    [process.env.SESSION_SECRET ?? 'dev-secret-change-in-production'],
+    maxAge:  7 * 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    secure:  process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
 }));
 
 app.use(express.static(join(__dirname, 'public')));

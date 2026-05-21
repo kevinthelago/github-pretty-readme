@@ -46,7 +46,8 @@ export const authCallback = async (req, res) => {
 };
 
 export const authLogout = (req, res) => {
-    req.session.destroy(() => res.redirect('/'));
+    req.session = null;
+    res.redirect('/');
 };
 
 export const authMe = (req, res) => {

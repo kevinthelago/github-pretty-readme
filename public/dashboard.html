@@ -464,6 +464,32 @@
             <div class="log" id="apply-log"></div>
         </div>
 
+        <!-- Repo Improvements -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Repo Improvements</span>
+            </div>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+                Use AI to fill in missing topics and descriptions across your repositories.
+            </p>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
+                    <input type="checkbox" id="toggle-topics" checked style="accent-color:var(--accent);width:14px;height:14px" />
+                    AI Topics <span style="color:var(--muted);font-size:12px">(repos with &lt;3 topics)</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
+                    <input type="checkbox" id="toggle-descriptions" checked style="accent-color:var(--accent);width:14px;height:14px" />
+                    AI Descriptions <span style="color:var(--muted);font-size:12px">(repos with no description)</span>
+                </label>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="btn-sm" id="imp-preview-btn">Preview Changes</button>
+                <button class="btn-sm" id="imp-apply-btn" disabled>Apply</button>
+            </div>
+            <div class="log" id="imp-log" style="max-height:280px"></div>
+            <p class="apply-status" id="imp-status"></p>
+        </div>
+
     </div>
 </div>
 
@@ -641,6 +667,92 @@
             insightsGate.style.display    = 'block';
             insightsError.textContent     = '✗ ' + err.message;
             insightsError.style.display   = 'block';
+        }
+    });
+
+    // ── Repo Improvements ─────────────────────────────────────────────────────
+    const impPreviewBtn = document.getElementById('imp-preview-btn');
+    const impApplyBtn   = document.getElementById('imp-apply-btn');
+    const impLog        = document.getElementById('imp-log');
+    const impStatus     = document.getElementById('imp-status');
+    let lastImpPreview  = null;
+
+    impPreviewBtn.addEventListener('click', async () => {
+        const doTopics = document.getElementById('toggle-topics').checked;
+        const doDescs  = document.getElementById('toggle-descriptions').checked;
+        if (!doTopics && !doDescs) {
+            impStatus.textContent = 'Select at least one improvement type.';
+            impStatus.className   = 'apply-status error';
+            return;
+        }
+        impPreviewBtn.disabled = true;
+        impPreviewBtn.textContent = 'Loading…';
+        impApplyBtn.disabled = true;
+        impStatus.textContent = '';
+        impStatus.className   = 'apply-status';
+        impLog.innerHTML = '';
+        impLog.classList.add('visible');
+        lastImpPreview = null;
+
+        try {
+            const [topicsData, descsData] = await Promise.all([
+                doTopics ? fetch('/improve-topics?dry_run=true').then(r => r.json()) : Promise.resolve(null),
+                doDescs  ? fetch('/improve-descriptions?dry_run=true').then(r => r.json()) : Promise.resolve(null),
+            ]);
+
+            let html = '';
+            if (topicsData) {
+                const n = topicsData.updated?.length ?? 0;
+                html += `<div class="ok">Topics — ${n} repo${n !== 1 ? 's' : ''} to update, ${topicsData.skipped?.length ?? 0} skipped</div>`;
+                topicsData.updated?.forEach(r => {
+                    html += `<div style="padding-left:12px;color:var(--muted)">• ${r.repo}: ${(r.topics ?? []).join(', ')}</div>`;
+                });
+            }
+            if (descsData) {
+                const n = descsData.updated?.length ?? 0;
+                html += `<div class="ok" style="margin-top:6px">Descriptions — ${n} repo${n !== 1 ? 's' : ''} to update, ${descsData.skipped?.length ?? 0} skipped</div>`;
+                descsData.updated?.forEach(r => {
+                    html += `<div style="padding-left:12px;color:var(--muted)">• ${r.repo}: ${r.description ?? ''}</div>`;
+                });
+            }
+            if (!html) html = '<div>Nothing to improve — repos already have topics and descriptions.</div>';
+            impLog.innerHTML = html;
+
+            const changed = (topicsData?.updated?.length ?? 0) + (descsData?.updated?.length ?? 0);
+            lastImpPreview = { doTopics, doDescs };
+            impApplyBtn.disabled = changed === 0;
+        } catch (err) {
+            impLog.innerHTML = `<div class="err">✗ ${err.message}</div>`;
+        } finally {
+            impPreviewBtn.disabled = false;
+            impPreviewBtn.textContent = 'Preview Changes';
+        }
+    });
+
+    impApplyBtn.addEventListener('click', async () => {
+        if (!lastImpPreview) return;
+        const { doTopics, doDescs } = lastImpPreview;
+        impApplyBtn.disabled  = true;
+        impPreviewBtn.disabled = true;
+        impStatus.textContent  = 'Applying…';
+        impStatus.className    = 'apply-status';
+        try {
+            const [tRes, dRes] = await Promise.all([
+                doTopics ? fetch('/improve-topics').then(r => r.json()) : Promise.resolve(null),
+                doDescs  ? fetch('/improve-descriptions').then(r => r.json()) : Promise.resolve(null),
+            ]);
+            const parts = [];
+            if (tRes) parts.push(`${tRes.updated?.length ?? 0} repos updated with AI topics`);
+            if (dRes) parts.push(`${dRes.updated?.length ?? 0} repos updated with AI descriptions`);
+            impStatus.textContent = '✓ ' + parts.join(', ');
+            impStatus.className   = 'apply-status success';
+            lastImpPreview = null;
+            impApplyBtn.disabled = true;
+        } catch (err) {
+            impStatus.textContent = '✗ ' + err.message;
+            impStatus.className   = 'apply-status error';
+        } finally {
+            impPreviewBtn.disabled = false;
         }
     });
 
