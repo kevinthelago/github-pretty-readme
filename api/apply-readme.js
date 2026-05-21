@@ -1,5 +1,6 @@
 import { getAllRepos }                      from '../src/github/repos.js';
 import { computeRating, computeInsights }   from '../src/github/developer-rating.js';
+import { fetchWorkflowMetrics }             from '../src/github/workflow-metrics.js';
 import { renderDeveloperRating }            from '../src/tiles/developer-rating.js';
 import { buildTechSeries, lookupIcon }      from '../src/github/tech-data.js';
 import { renderTechGrid }                   from '../src/tiles/tech-grid.js';
@@ -102,12 +103,15 @@ const generateRecommendations = async (repos, rating, insights) => {
     repos.forEach(r => { if (r.language) langFreq[r.language] = (langFreq[r.language] || 0) + 1; });
     const topLangs  = Object.entries(langFreq).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([l, n]) => `${l} (${n} repos)`).join(', ');
     const allTopics = [...new Set(repos.flatMap(r => r.topics ?? []))].slice(0, 30).join(', ') || 'none';
+    const engLine   = rating.engineering != null
+        ? `\n- Engineering ${rating.engineering}/100 (CI: ${insights.engineering?.ciCount ?? 0}/${insights.engineering?.total ?? 0} repos, deployments: ${insights.engineering?.deploymentCount ?? 0}/${insights.engineering?.total ?? 0})`
+        : '';
 
     const prompt = `You are a senior software engineer reviewing a developer's GitHub profile and giving specific, actionable growth advice.
 
 Developer profile:
 - Overall score: ${rating.overall}/100 (${rating.tier.label} tier)
-- Breadth ${rating.breadth}/100 · Depth ${rating.depth}/100 · Diversity ${rating.diversity}/100 · Activity ${rating.activity}/100 · Impact ${rating.impact}/100
+- Breadth ${rating.breadth}/100 · Depth ${rating.depth}/100 · Diversity ${rating.diversity}/100 · Activity ${rating.activity}/100 · Impact ${rating.impact}/100${engLine}
 - Languages by repo count: ${topLangs || 'none detected'}
 - Topics used across repos: ${allTopics}
 - Tech categories covered: ${coveredCategories.join(', ') || 'none'}
@@ -140,9 +144,39 @@ Write one focused paragraph on the single most impactful area this developer sho
     }
 };
 
+const renderEngineering = (score, details) => {
+    if (!details) return null;
+    const { ciCount, deploymentCount, issueCount, prCount, total } = details;
+    const pct = (n) => `${Math.round((n / total) * 100)}%`;
+    const lines = [
+        `## Engineering — ${bar(score)}`,
+        '',
+        `**What it measures:** CI adoption, deployment automation, issue management, and PR culture across your ${total} most recently active non-fork repos.`,
+        '',
+        '| Signal | Repos | Share | Weight |',
+        '|---|---|---|---|',
+        `| CI / check-runs     | ${ciCount}         | ${pct(ciCount)}         | 40% |`,
+        `| Deployments         | ${deploymentCount} | ${pct(deploymentCount)} | 25% |`,
+        `| Closed issues       | ${issueCount}      | ${pct(issueCount)}      | 20% |`,
+        `| Pull requests       | ${prCount}         | ${pct(prCount)}         | 15% |`,
+    ];
+    const missing = [];
+    if (ciCount < Math.ceil(total * 0.5))         missing.push('CI workflows (GitHub Actions, CircleCI, etc.) — the highest-weighted signal at 40%');
+    if (deploymentCount < Math.ceil(total * 0.3)) missing.push('deployment automation via GitHub Deployments, Vercel, Heroku, or Fly.io');
+    if (issueCount < Math.ceil(total * 0.3))      missing.push('issue tracking — open and close issues to demonstrate active project management');
+    if (prCount < Math.ceil(total * 0.3))         missing.push('pull requests — even solo projects benefit from PR-based review workflows');
+    if (missing.length) {
+        lines.push('', '**How to improve:**');
+        missing.forEach(m => lines.push(`- Add ${m}`));
+    } else {
+        lines.push('', '> Strong engineering practices across all sampled repos.');
+    }
+    return lines.join('\n');
+};
+
 const renderInsights = (rating, insights, repos, recommendations = '') => {
     const date = new Date().toISOString().slice(0, 10);
-    const { breadth, depth, diversity, activity, impact } = insights;
+    const { breadth, depth, diversity, activity, impact, engineering } = insights;
 
     const breadthMd = (() => {
         const { languages, coveredCategories, missingCategories } = breadth;
@@ -275,18 +309,30 @@ const renderInsights = (rating, insights, repos, recommendations = '') => {
         return lines.join('\n');
     })();
 
+    const hasEng = rating.engineering != null;
+    const weightTable = [
+        '| Dimension   | Score | Weight |', '|---|---|---|',
+        `| Breadth     | ${rating.breadth}/100   | ${hasEng ? '17%' : '20%'} |`,
+        `| Depth       | ${rating.depth}/100     | ${hasEng ? '22%' : '25%'} |`,
+        `| Diversity   | ${rating.diversity}/100 | ${hasEng ? '17%' : '20%'} |`,
+        `| Activity    | ${rating.activity}/100  | ${hasEng ? '18%' : '21%'} |`,
+        `| Impact      | ${rating.impact}/100    | ${hasEng ? '13%' : '14%'} |`,
+        ...(hasEng ? [`| Engineering | ${rating.engineering}/100 | 13% |`] : []),
+    ].join('\n');
+
     const parts = [
         `# Developer Score Insights`,
         `_Generated ${date} · ${repos.length} repositories analysed_`, '',
         `## Overall Score: ${rating.overall}/100 — Tier ${rating.tier.label}`, '',
-        '| Dimension | Score | Weight |', '|---|---|---|',
-        `| Breadth   | ${rating.breadth}/100   | 20% |`,
-        `| Depth     | ${rating.depth}/100     | 25% |`,
-        `| Diversity | ${rating.diversity}/100 | 20% |`,
-        `| Activity  | ${rating.activity}/100  | 20% |`,
-        `| Impact    | ${rating.impact}/100    | 15% |`, '', '---', '',
+        weightTable, '', '---', '',
         breadthMd, '', '---', '', depthMd, '', '---', '', diversityMd, '', '---', '', activityMd, '', '---', '', impactMd,
     ];
+
+    if (hasEng) {
+        const engMd = renderEngineering(rating.engineering, engineering);
+        if (engMd) parts.push('', '---', '', engMd);
+    }
+
     if (recommendations) parts.push('', '---', '', recommendations);
     return parts.join('\n');
 };
@@ -301,6 +347,10 @@ export async function generateProfile(token, username, monkeyOptions = {}) {
     const repos = await getAllRepos(token);
     if (!repos) throw new Error('Failed to fetch repositories — check token scope');
 
+    log('Fetching workflow metrics…');
+    const [wfResult] = await Promise.allSettled([fetchWorkflowMetrics(token, repos)]);
+    const metrics    = wfResult.status === 'fulfilled' ? wfResult.value : null;
+
     log('Generating bio…');
     const bioPrompt =
         `Write a 2-3 sentence developer bio for a GitHub profile README based on the following repositories. ` +
@@ -310,8 +360,8 @@ export async function generateProfile(token, username, monkeyOptions = {}) {
     const bio       = bioResult.response.text().trim();
 
     log('Computing developer rating…');
-    const rating    = computeRating(repos);
-    const insights  = computeInsights(repos);
+    const rating    = computeRating(repos, metrics);
+    const insights  = computeInsights(repos, metrics);
     const ratingSvg = renderDeveloperRating(rating);
 
     log('Building tech grid…');

@@ -147,6 +147,32 @@ const impactDetails = (repos) => {
         .sort((a, b) => (b.stars + b.forks * 2) - (a.stars + a.forks * 2));
 };
 
+// ── Engineering dimension ─────────────────────────────────────────────────────
+
+const scoreEngineering = (metrics) => {
+    if (!metrics || metrics.length === 0) return null; // omit if data unavailable
+    const n    = metrics.length;
+    const ci   = metrics.filter(m => m.hasCi).length / n;
+    const dep  = metrics.filter(m => m.hasDeployments).length / n;
+    const iss  = metrics.filter(m => m.hasClosedIssues).length / n;
+    const prs  = metrics.filter(m => m.hasPrs).length / n;
+    return clamp(Math.round(ci * 40 + dep * 25 + iss * 20 + prs * 15));
+};
+
+const engineeringDetails = (metrics) => {
+    if (!metrics || metrics.length === 0) return null;
+    return {
+        repos:           metrics,
+        ciCount:         metrics.filter(m => m.hasCi).length,
+        deploymentCount: metrics.filter(m => m.hasDeployments).length,
+        issueCount:      metrics.filter(m => m.hasClosedIssues).length,
+        prCount:         metrics.filter(m => m.hasPrs).length,
+        total:           metrics.length,
+    };
+};
+
+// ── Tiers & weights ───────────────────────────────────────────────────────────
+
 const TIER_THRESHOLDS = [
     { label: 'S', min: 85, color: '#FFD700' },
     { label: 'A', min: 70, color: '#58d68d' },
@@ -157,32 +183,51 @@ const TIER_THRESHOLDS = [
 
 const tier = (score) => TIER_THRESHOLDS.find(t => score >= t.min);
 
-const WEIGHTS = { breadth: 0.20, depth: 0.25, diversity: 0.20, activity: 0.20, impact: 0.15 };
+// Weights sum to 1.0 with engineering; without it the five base weights are renormalised.
+const BASE_WEIGHTS        = { breadth: 0.17, depth: 0.22, diversity: 0.17, activity: 0.18, impact: 0.13 };
+const ENGINEERING_WEIGHT  = 0.13;
 
-const computeRating = (repos) => {
+const computeRating = (repos, workflowMetrics = null) => {
+    const engineering = scoreEngineering(workflowMetrics);
+    const hasEng      = engineering !== null;
+
     const dimensions = {
         breadth:   scoreBreadth(repos),
         depth:     scoreDepth(repos),
         diversity: scoreDiversity(repos),
         activity:  scoreActivity(repos),
         impact:    scoreImpact(repos),
+        ...(hasEng ? { engineering } : {}),
     };
-    const overall = Math.round(
-        Object.entries(WEIGHTS).reduce((sum, [key, w]) => sum + dimensions[key] * w, 0)
-    );
+
+    let overall;
+    if (hasEng) {
+        overall = Math.round(
+            Object.entries(BASE_WEIGHTS).reduce((sum, [k, w]) => sum + dimensions[k] * w, 0) +
+            engineering * ENGINEERING_WEIGHT
+        );
+    } else {
+        // Renormalise the five base weights to sum to 1
+        const total = Object.values(BASE_WEIGHTS).reduce((a, b) => a + b, 0);
+        overall = Math.round(
+            Object.entries(BASE_WEIGHTS).reduce((sum, [k, w]) => sum + dimensions[k] * (w / total), 0)
+        );
+    }
+
     return { ...dimensions, overall, tier: tier(overall) };
 };
 
 /**
  * Returns per-dimension detail data for generating the insights report.
- * Each detail object contains repo-level breakdowns and actionable context.
+ * Pass workflowMetrics (from fetchWorkflowMetrics) to include engineering details.
  */
-const computeInsights = (repos) => ({
-    breadth:   breadthDetails(repos),
-    depth:     depthDetails(repos),
-    diversity: diversityDetails(repos),
-    activity:  activityDetails(repos),
-    impact:    impactDetails(repos),
+const computeInsights = (repos, workflowMetrics = null) => ({
+    breadth:     breadthDetails(repos),
+    depth:       depthDetails(repos),
+    diversity:   diversityDetails(repos),
+    activity:    activityDetails(repos),
+    impact:      impactDetails(repos),
+    engineering: engineeringDetails(workflowMetrics),
 });
 
 export { computeRating, computeInsights };

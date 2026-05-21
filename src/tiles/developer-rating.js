@@ -1,10 +1,11 @@
-const DIMENSIONS = [
-    { key: 'breadth',   label: 'Breadth',   color: '#c792ea' },
-    { key: 'depth',     label: 'Depth',     color: '#82aaff' },
-    { key: 'diversity', label: 'Diversity', color: '#89ddff' },
-    { key: 'activity',  label: 'Activity',  color: '#c3e88d' },
-    { key: 'impact',    label: 'Impact',    color: '#f78c6c' },
+const BASE_DIMENSIONS = [
+    { key: 'breadth',     label: 'Breadth',     color: '#c792ea' },
+    { key: 'depth',       label: 'Depth',       color: '#82aaff' },
+    { key: 'diversity',   label: 'Diversity',   color: '#89ddff' },
+    { key: 'activity',    label: 'Activity',    color: '#c3e88d' },
+    { key: 'impact',      label: 'Impact',      color: '#f78c6c' },
 ];
+const ENG_DIMENSION = { key: 'engineering', label: 'Engineering', color: '#ffcb6b' };
 
 const W = 800, H = 280;
 const PAD = 28;
@@ -12,8 +13,8 @@ const SCORE_W = 190;
 const BAR_X = SCORE_W + PAD * 2;
 const BAR_MAX_W = W - BAR_X - PAD;
 const BAR_H = 10;
-const BAR_GAP = 36;
-const BARS_TOP = 58;
+const BAR_GAP = 30;
+const BARS_TOP = 48;
 
 /**
  * Renders an 800x280 SVG score card showing the 5 developer rating dimensions
@@ -46,6 +47,10 @@ const renderDeveloperRating = (rating) => {
     const divider = `<line x1="${SCORE_W + PAD}" y1="${PAD}" x2="${SCORE_W + PAD}" y2="${H - PAD}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
 
     // ── Right panel: dimension bars ───────────────────────────────────────────
+    const DIMENSIONS = rating.engineering != null
+        ? [...BASE_DIMENSIONS, ENG_DIMENSION]
+        : BASE_DIMENSIONS;
+
     const bars = DIMENSIONS.map(({ key, label, color }, i) => {
         const score = rating[key];
         const y = BARS_TOP + i * BAR_GAP;
