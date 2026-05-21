@@ -223,15 +223,55 @@ const renderInsights = (rating, insights, repos, recommendations = '') => {
     const impactMd = (() => {
         const top   = impact.slice(0, 5);
         const total = { stars: impact.reduce((s, r) => s + r.stars, 0), forks: impact.reduce((s, r) => s + r.forks, 0) };
+        const hiddenGems       = impact.filter(r => r.stars === 0 && r.forks === 0).slice(0, 4);
+        const forkedNotStarred = impact.filter(r => r.forks > 0 && r.stars === 0).slice(0, 3);
+
         const lines = [
             `## Impact — ${bar(rating.impact)}`, '',
-            `**Total:** ${total.stars} stars · ${total.forks} forks`, '',
+            `**What it measures:** Community reception via stars and forks (log-scaled).`, '',
+            `**Total:** ${total.stars} ★ · ${total.forks} forks across ${impact.length} repos`, '',
         ];
+
         if (top.length) {
             lines.push('**Top repositories by impact:**', '', '| Repository | Stars | Forks |', '|---|---|---|');
-            top.forEach(r => lines.push(`| ${fmt(r.name, r.url)} | ${r.stars} | ${r.forks} |`));
+            top.forEach(r => lines.push(`| ${fmt(r.name, r.url)} | ${r.stars} ★ | ${r.forks} |`));
         }
-        lines.push('', '**How to improve:**', '- Add a polished README with screenshots or demos', '- Pin your strongest repos on your profile');
+
+        if (forkedNotStarred.length) {
+            lines.push('', `**Forked but not starred — promote these:** ${forkedNotStarred.map(r => fmt(r.name, r.url)).join(', ')}`);
+            lines.push('_People found these useful enough to fork. A proper README and a share post could convert forks into stars._');
+        }
+
+        if (hiddenGems.length) {
+            lines.push('', `**Zero-traction repos worth showcasing:** ${hiddenGems.map(r => fmt(r.name, r.url)).join(', ')}`);
+            lines.push('_These have no stars or forks yet. If any solve a real problem, they are candidates for promotion._');
+        }
+
+        lines.push('', '**How to improve:**', '');
+
+        lines.push('_README quality (biggest single lever):_');
+        lines.push('- Add a one-line description and a screenshot or GIF at the top of each key repo');
+        lines.push('- Include a **Quick Start** section — repos with copy-paste setup instructions get more stars');
+        lines.push('- Add relevant GitHub topics so the repo appears in GitHub Explore searches');
+        lines.push('- Enable **GitHub Pages** for frontend or documentation projects to provide a live demo link');
+
+        lines.push('');
+        lines.push('_Discoverability:_');
+        lines.push('- Pin your top 6 repos on your profile page (GitHub → Edit profile → Customize pins)');
+        lines.push('- Create a GitHub Release for stable projects — versioned releases signal project maturity');
+        lines.push('- Make sure each repo has a license — repos without one are less likely to be forked');
+
+        lines.push('');
+        lines.push('_Community sharing:_');
+        if (top.length) lines.push(`- Write a short post about \`${top[0].name}\` explaining the problem it solves and link to it`);
+        lines.push('- Share projects on Hacker News (Show HN), dev.to, and the subreddits for your stack');
+        if (total.stars < 5) lines.push('- Ask peers or colleagues to star repos they find genuinely useful — early social proof compounds');
+
+        lines.push('');
+        lines.push('_Open source leverage:_');
+        lines.push('- Contributing even small fixes (docs, bugs) to popular repos in your stack gets your name on high-traffic projects');
+        lines.push('- If any private projects solve general problems, open-sourcing them is the fastest path to impact');
+
         return lines.join('\n');
     })();
 
