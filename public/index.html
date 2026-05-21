@@ -257,6 +257,19 @@
         .c-add-item { padding:8px 14px; font-size:13px; border-radius:5px; cursor:pointer; white-space:nowrap; color:var(--gh-text); }
         .c-add-item:hover { background:rgba(88,166,255,.1); color:var(--accent); }
 
+        /* ── Feature selector (hero) ── */
+        .feature-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:10px; margin:32px auto 28px; max-width:860px; text-align:left; }
+        .feature-card { background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:16px; transition:border-color .15s,background .15s; position:relative; }
+        .feature-card.always-on { border-color:rgba(63,185,80,0.35); background:rgba(63,185,80,0.04); }
+        .feature-grid.interactive .feature-card:not(.always-on) { cursor:pointer; }
+        .feature-grid.interactive .feature-card:not(.always-on):hover { border-color:rgba(88,166,255,0.35); }
+        .feature-grid.interactive .feature-card.selected { border-color:var(--accent); background:rgba(88,166,255,0.07); }
+        .feature-check { width:18px; height:18px; border-radius:4px; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; margin-bottom:10px; font-size:11px; color:transparent; transition:all .15s; }
+        .feature-card.always-on .feature-check { border-color:var(--green); background:var(--green); color:#0d1117; }
+        .feature-grid.interactive .feature-card.selected .feature-check { border-color:var(--accent); background:var(--accent); color:#0d1117; }
+        .feature-title { font-size:13px; font-weight:600; margin-bottom:4px; color:var(--text); }
+        .feature-desc { font-size:12px; color:var(--muted); line-height:1.5; }
+
         /* ── Steps ── */
         .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-top:8px; }
         .step { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:24px; }
@@ -291,6 +304,34 @@
         AI scans your repositories, grades code quality, generates READMEs,
         and builds a developer profile — all pushed to GitHub automatically.
     </p>
+    <div class="feature-grid" id="feature-grid">
+        <div class="feature-card always-on" data-id="profile">
+            <div class="feature-check">✓</div>
+            <div class="feature-title">Profile Summary</div>
+            <div class="feature-desc">Developer rating, tech grid, and AI insights for your profile README.</div>
+        </div>
+        <div class="feature-card" data-id="score">
+            <div class="feature-check"></div>
+            <div class="feature-title">SCORE.md</div>
+            <div class="feature-desc">Code quality grade across 6 dimensions pushed to every repo.</div>
+        </div>
+        <div class="feature-card" data-id="readme">
+            <div class="feature-check"></div>
+            <div class="feature-title">README Generation</div>
+            <div class="feature-desc">AI-written README from code analysis for repos that need one.</div>
+        </div>
+        <div class="feature-card" data-id="topics">
+            <div class="feature-check"></div>
+            <div class="feature-title">AI Topics</div>
+            <div class="feature-desc">Suggest and apply topics to repos with fewer than 3 tags.</div>
+        </div>
+        <div class="feature-card" data-id="descriptions">
+            <div class="feature-check"></div>
+            <div class="feature-title">AI Descriptions</div>
+            <div class="feature-desc">Write concise descriptions for repos missing one.</div>
+        </div>
+    </div>
+
     <div class="cta-row" id="cta-row">
         <a class="btn btn-primary" href="/auth/github">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -450,28 +491,6 @@
                 <p style="font-size:13px;color:var(--muted);margin-bottom:10px" id="mt-connected-label">Monkeytype connected.</p>
                 <button class="btn-sm" id="mt-disconnect">Disconnect</button>
             </div>
-        </div>
-
-        <!-- Repo Improvements -->
-        <div class="card">
-            <div class="card-title">Bulk Repo Improvements</div>
-            <p class="card-desc">Use AI to fill in missing topics and descriptions across all repositories at once.</p>
-            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
-                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
-                    <input type="checkbox" id="toggle-topics" checked style="accent-color:var(--accent);width:14px;height:14px" />
-                    AI Topics <span style="color:var(--muted);font-size:12px">(repos with &lt;3 topics)</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
-                    <input type="checkbox" id="toggle-descriptions" checked style="accent-color:var(--accent);width:14px;height:14px" />
-                    AI Descriptions <span style="color:var(--muted);font-size:12px">(repos with no description)</span>
-                </label>
-            </div>
-            <div style="display:flex;gap:8px">
-                <button class="btn-sm" id="imp-preview-btn">Preview Changes</button>
-                <button class="btn-sm" id="imp-apply-btn" disabled>Apply</button>
-            </div>
-            <div class="apply-log" id="imp-log" style="max-height:220px"></div>
-            <p class="apply-msg" id="imp-status"></p>
         </div>
 
     </div>
@@ -731,76 +750,113 @@ if (urlParams.get('error')) {
 }
 
 // ── Apply logic ───────────────────────────────────────────────────────────────
-const applyLog = document.getElementById('apply-log');
-const applyMsg = document.getElementById('apply-msg');
-let applyRunning = false;
+const applyLog      = document.getElementById('apply-log');
+const applyMsg      = document.getElementById('apply-msg');
+let   applyRunning  = false;
+const REPO_FEAT_IDS = ['score', 'readme', 'topics', 'descriptions'];
+let   selectedFeats = new Set(['profile']); // initialised here, populated post-auth
 
 const runApply = async (allBtns) => {
     if (applyRunning) return;
     applyRunning = true;
     allBtns.forEach(b => { b.disabled = true; });
-    applyMsg.className   = 'apply-msg';
-    applyLog.innerHTML   = '';
+    applyMsg.className     = 'apply-msg';
+    applyLog.innerHTML     = '';
     applyLog.style.display = 'block';
     document.getElementById('apply-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-    const repo = window._selectedRepo;
+    const repo        = window._selectedRepo;
+    const hasRepoFeat = REPO_FEAT_IDS.some(id => selectedFeats.has(id));
 
-    if (repo) {
-        // ── Repo apply ──────────────────────────────────────────────────────
+    const showSteps = (steps) => {
+        applyLog.innerHTML = (steps ?? []).map(s => {
+            const cls = s.startsWith('Done') ? 'done' : s.startsWith('  ✗') ? 'err' : 'ok';
+            return `<div class="${cls}">${s}</div>`;
+        }).join('');
+    };
+
+    if (repo && !hasRepoFeat) {
+        // ── Single-repo apply (URL switcher) ─────────────────────────────────
         const generateReadme = document.getElementById('readme-toggle').checked;
-        applyMsg.textContent = `Applying to ${repo}…`;
+        applyMsg.textContent   = `Applying to ${repo}…`;
         applyMsg.style.display = 'block';
         try {
-            const url = `/repo-apply?repo=${encodeURIComponent(repo)}${generateReadme ? '&readme=true' : ''}`;
+            const url  = `/repo-apply?repo=${encodeURIComponent(repo)}${generateReadme ? '&readme=true' : ''}`;
             const res  = await fetch(url);
             const data = await res.json();
-            if (data.steps?.length) {
-                applyLog.innerHTML = data.steps.map(s =>
-                    `<div class="${s.startsWith('Done') ? 'done' : 'ok'}">✓ ${s}</div>`
-                ).join('');
-            }
-            if (data.ok) {
-                applyMsg.textContent = `✓ Applied to github.com/${window._authUser}/${repo}`;
+            showSteps(data.steps);
+            if (!data.ok) throw new Error(data.error ?? 'Unknown error');
+            applyMsg.textContent = `✓ Applied to github.com/${window._authUser}/${repo}`;
+            applyMsg.className   = 'apply-msg success';
+        } catch (err) {
+            applyMsg.textContent = '✗ ' + err.message;
+            applyMsg.className   = 'apply-msg error';
+            applyLog.innerHTML  += `<div class="err">✗ ${err.message}</div>`;
+        }
+
+    } else if (hasRepoFeat) {
+        // ── Apply all repos ───────────────────────────────────────────────────
+        const params = new URLSearchParams();
+        if (selectedFeats.has('score'))        params.set('score',        'true');
+        if (selectedFeats.has('readme'))       params.set('readme',       'true');
+        if (selectedFeats.has('topics'))       params.set('topics',       'true');
+        if (selectedFeats.has('descriptions')) params.set('descriptions', 'true');
+        // Always include profile when profile is in the selected set
+        const alsoProfile = selectedFeats.has('profile');
+
+        applyMsg.textContent   = 'Running bulk operations across all repositories…';
+        applyMsg.style.display = 'block';
+        try {
+            const [allRes, profileRes] = await Promise.allSettled([
+                fetch(`/apply-all?${params}`).then(r => r.json()),
+                alsoProfile ? fetch('/apply-readme').then(r => r.json()) : Promise.resolve(null),
+            ]);
+            const allData     = allRes.value;
+            const profileData = profileRes.value;
+            const combined    = [
+                ...(allData?.steps       ?? []),
+                ...(profileData?.steps   ?? []),
+            ];
+            showSteps(combined);
+            if (allData?.ok || profileData?.ok) {
+                applyMsg.textContent = `✓ Done — ${combined.filter(s => s.includes('✓')).length} operations applied.`;
                 applyMsg.className   = 'apply-msg success';
+                if (alsoProfile) {
+                    insightsLoaded = false;
+                    insightsBody.innerHTML = ''; insightsBody.style.display = 'none';
+                    insightsGate.style.display = 'block';
+                    const scheduleNote = document.getElementById('schedule-note');
+                    const scheduleLink = document.getElementById('schedule-link');
+                    if (window._authUser) scheduleLink.href = `https://github.com/${window._authUser}/${window._authUser}/settings/secrets/actions/new?secret_name=GH_PAT`;
+                    scheduleNote.style.display = 'block';
+                }
             } else {
-                throw new Error(data.error ?? 'Unknown error');
+                throw new Error(allData?.error ?? profileData?.error ?? 'Unknown error');
             }
         } catch (err) {
             applyMsg.textContent = '✗ ' + err.message;
             applyMsg.className   = 'apply-msg error';
             applyLog.innerHTML  += `<div class="err">✗ ${err.message}</div>`;
         }
+
     } else {
-        // ── Profile apply ────────────────────────────────────────────────────
-        applyMsg.textContent = 'Generating and pushing to GitHub…';
+        // ── Profile only ──────────────────────────────────────────────────────
+        applyMsg.textContent   = 'Generating and pushing to GitHub…';
         applyMsg.style.display = 'block';
         try {
             const res  = await fetch('/apply-readme');
             const data = await res.json();
-            if (data.steps?.length) {
-                applyLog.innerHTML = data.steps.map(s =>
-                    `<div class="${s.startsWith('Done') ? 'done' : 'ok'}">✓ ${s}</div>`
-                ).join('');
-            }
-            if (data.ok) {
-                applyMsg.textContent = `✓ Profile updated — github.com/${window._authUser}`;
-                applyMsg.className   = 'apply-msg success';
-                // Reset insights
-                insightsLoaded = false;
-                insightsBody.innerHTML = '';
-                insightsBody.style.display = 'none';
-                insightsGate.style.display = 'block';
-                // Show schedule note
-                const scheduleNote = document.getElementById('schedule-note');
-                const scheduleLink = document.getElementById('schedule-link');
-                if (window._authUser) {
-                    scheduleLink.href = `https://github.com/${window._authUser}/${window._authUser}/settings/secrets/actions/new?secret_name=GH_PAT`;
-                }
-                scheduleNote.style.display = 'block';
-            } else {
-                throw new Error(data.error ?? 'Unknown error');
-            }
+            showSteps(data.steps);
+            if (!data.ok) throw new Error(data.error ?? 'Unknown error');
+            applyMsg.textContent = `✓ Profile updated — github.com/${window._authUser}`;
+            applyMsg.className   = 'apply-msg success';
+            insightsLoaded = false;
+            insightsBody.innerHTML = ''; insightsBody.style.display = 'none';
+            insightsGate.style.display = 'block';
+            const scheduleNote = document.getElementById('schedule-note');
+            const scheduleLink = document.getElementById('schedule-link');
+            if (window._authUser) scheduleLink.href = `https://github.com/${window._authUser}/${window._authUser}/settings/secrets/actions/new?secret_name=GH_PAT`;
+            scheduleNote.style.display = 'block';
         } catch (err) {
             applyMsg.textContent = '✗ ' + err.message;
             applyMsg.className   = 'apply-msg error';
@@ -855,6 +911,30 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
     const allApplyBtns = [applyBtn1, applyBtn2];
     applyBtn1.addEventListener('click', () => runApply(allApplyBtns));
     applyBtn2.addEventListener('click', () => runApply(allApplyBtns));
+
+    // ── Feature selector ──────────────────────────────────────────────────────
+    const featureGrid = document.getElementById('feature-grid');
+    featureGrid.classList.add('interactive');
+
+    const syncApplyLabel = () => {
+        const hasRepo = REPO_FEAT_IDS.some(id => selectedFeats.has(id));
+        const label   = hasRepo
+            ? 'Apply to All Repositories'
+            : window._selectedRepo
+                ? `Apply to ${window._selectedRepo}`
+                : 'Apply to Profile';
+        const svg = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="${ghPath}"/></svg>`;
+        allApplyBtns.forEach(b => { b.innerHTML = `${svg} ${label}`; });
+    };
+
+    featureGrid.querySelectorAll('.feature-card:not(.always-on)').forEach(card => {
+        card.addEventListener('click', () => {
+            const id = card.dataset.id;
+            if (selectedFeats.has(id)) { selectedFeats.delete(id); card.classList.remove('selected'); }
+            else                       { selectedFeats.add(id);    card.classList.add('selected'); }
+            syncApplyLabel();
+        });
+    });
 
     // ── Profile preview ───────────────────────────────────────────────────────
     const loadingEl    = document.getElementById('preview-loading');
@@ -931,16 +1011,11 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
     const setProfileMode = () => {
         window._selectedRepo = null;
         urlEl.textContent    = `github.com/${me.username}/${me.username}`;
-        // Show profile tabs, hide repo tabs
         document.getElementById('tab-readme').style.display    = '';
         document.getElementById('tab-insights').style.display  = '';
         document.getElementById('tab-score').style.display     = 'none';
         activateTab('readme');
-        // Apply button
-        allApplyBtns.forEach(b => {
-            b.textContent = '';
-            b.innerHTML   = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="${ghPath}"/></svg> Apply to Profile`;
-        });
+        syncApplyLabel();
         document.getElementById('readme-toggle-label').style.display = 'none';
         document.getElementById('schedule-note').style.display        = 'none';
         applyMsg.style.display = 'none';
@@ -1032,10 +1107,8 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         document.getElementById('tab-score').style.display    = '';
         activateTab('score');
 
-        allApplyBtns.forEach(b => {
-            b.disabled  = true;
-            b.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="${ghPath}"/></svg> Apply to ${repoName}`;
-        });
+        allApplyBtns.forEach(b => { b.disabled = true; });
+        syncApplyLabel();
         document.getElementById('readme-toggle-label').style.display = 'flex';
         document.getElementById('schedule-note').style.display        = 'none';
         applyMsg.style.display = 'none';
@@ -1133,53 +1206,6 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         fetchPreview(true);
     });
 
-    // ── Bulk Repo Improvements ────────────────────────────────────────────────
-    const impPreviewBtn = document.getElementById('imp-preview-btn');
-    const impApplyBtn   = document.getElementById('imp-apply-btn');
-    const impLog        = document.getElementById('imp-log');
-    const impStatus     = document.getElementById('imp-status');
-    let lastImpPreview  = null;
-
-    impPreviewBtn.addEventListener('click', async () => {
-        const doTopics = document.getElementById('toggle-topics').checked;
-        const doDescs  = document.getElementById('toggle-descriptions').checked;
-        if (!doTopics && !doDescs) { impStatus.textContent='Select at least one type.'; impStatus.className='apply-msg error'; impStatus.style.display='block'; return; }
-        impPreviewBtn.disabled=true; impPreviewBtn.textContent='Loading…';
-        impApplyBtn.disabled=true; impStatus.style.display='none';
-        impLog.innerHTML=''; impLog.style.display='block'; lastImpPreview=null;
-        try {
-            const [tData,dData] = await Promise.all([
-                doTopics ? fetch('/improve-topics?dry_run=true').then(r=>r.json())       : Promise.resolve(null),
-                doDescs  ? fetch('/improve-descriptions?dry_run=true').then(r=>r.json()) : Promise.resolve(null),
-            ]);
-            let html='';
-            if(tData){ html+=`<div class="ok">Topics — ${tData.updated?.length??0} repos to update, ${tData.skipped?.length??0} skipped</div>`; tData.updated?.forEach(r=>{html+=`<div style="padding-left:12px;color:var(--muted)">• ${r.repo}: ${(r.topics??[]).join(', ')}</div>`;}); }
-            if(dData){ html+=`<div class="ok" style="margin-top:6px">Descriptions — ${dData.updated?.length??0} repos to update, ${dData.skipped?.length??0} skipped</div>`; dData.updated?.forEach(r=>{html+=`<div style="padding-left:12px;color:var(--muted)">• ${r.repo}: ${r.description??''}</div>`;}); }
-            impLog.innerHTML=html||'<div>Nothing to improve — repos already have topics and descriptions.</div>';
-            lastImpPreview={doTopics,doDescs};
-            impApplyBtn.disabled=((tData?.updated?.length??0)+(dData?.updated?.length??0))===0;
-        } catch(err) { impLog.innerHTML=`<div class="err">✗ ${err.message}</div>`; }
-        finally { impPreviewBtn.disabled=false; impPreviewBtn.textContent='Preview Changes'; }
-    });
-
-    impApplyBtn.addEventListener('click', async () => {
-        if(!lastImpPreview) return;
-        const {doTopics,doDescs}=lastImpPreview;
-        impApplyBtn.disabled=true; impPreviewBtn.disabled=true;
-        impStatus.textContent='Applying…'; impStatus.className='apply-msg'; impStatus.style.display='block';
-        try {
-            const [tRes,dRes] = await Promise.all([
-                doTopics ? fetch('/improve-topics').then(r=>r.json())       : Promise.resolve(null),
-                doDescs  ? fetch('/improve-descriptions').then(r=>r.json()) : Promise.resolve(null),
-            ]);
-            const parts=[];
-            if(tRes) parts.push(`${tRes.updated?.length??0} repos updated with AI topics`);
-            if(dRes) parts.push(`${dRes.updated?.length??0} repos updated with AI descriptions`);
-            impStatus.textContent='✓ '+parts.join(', '); impStatus.className='apply-msg success';
-            lastImpPreview=null; impApplyBtn.disabled=true;
-        } catch(err) { impStatus.textContent='✗ '+err.message; impStatus.className='apply-msg error'; }
-        finally { impPreviewBtn.disabled=false; }
-    });
 
 }).catch(() => {});
 </script>
