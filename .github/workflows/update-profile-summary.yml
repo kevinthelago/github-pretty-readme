@@ -38,5 +38,7 @@ jobs:
       - name: Update profile README
         env:
           PROFILE_REPO_TOKEN: ${{ secrets.PROFILE_REPO_TOKEN }}
+          MONKEYTYPE_API_KEY:  ${{ secrets.MONKEYTYPE_API_KEY }}
+          MONKEYTYPE_USERNAME: ${{ secrets.MONKEYTYPE_USERNAME }}
           port: 8080
         run: node scripts/update-profile.mjs kevinthelago

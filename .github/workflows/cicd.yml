@@ -73,9 +73,6 @@ jobs:
           service: github-pretty-readme
           region:  ${{ env.REGION }}
           image:   ${{ env.IMAGE }}:${{ github.sha }}
-          env_vars: |
-            MONKEYTYPE_USERNAME=${{ secrets.MONKEYTYPE_USERNAME }}
           secrets: |
             GITHUB_TOKEN=GH_PAT:latest
             GOOGLE_AI_STUDIO_KEY=GOOGLE_AI_STUDIO_KEY:latest
-            MONKEYTYPE_API_KEY=MONKEYTYPE_API_KEY:latest

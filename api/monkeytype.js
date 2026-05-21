@@ -1,6 +1,5 @@
 import { renderMonkeytypeChart } from '../src/tiles/monkeytype-chart.js';
 
-const MONKEYTYPE_API_KEY = process.env.MONKEYTYPE_API_KEY;
 const TIME_MODES = ['15', '30', '60', '120'];
 
 const isStandardEnglish = r =>
@@ -14,16 +13,18 @@ const isStandardEnglish = r =>
  * GET /monkeytype
  *
  * Fetches personal bests from the Monkeytype API and renders a WPM chart SVG.
- * Only includes standard English time mode results.
+ * Resolves the API key from (in order): session → env var.
+ * Returns 401 if no key is available so the caller can prompt the user to connect.
  */
 export default async (req, res) => {
-    if (!MONKEYTYPE_API_KEY) return res.status(500).send('MONKEYTYPE_API_KEY not configured');
+    const apiKey = req.session?.monkeytype_key ?? process.env.MONKEYTYPE_API_KEY;
+    if (!apiKey) return res.status(401).send('Monkeytype not connected');
 
     res.setHeader('Content-Type', 'image/svg+xml');
 
     try {
         const response = await fetch('https://api.monkeytype.com/users/personalBests?mode=time', {
-            headers: { Authorization: `ApeKey ${MONKEYTYPE_API_KEY}` },
+            headers: { Authorization: `ApeKey ${apiKey}` },
         });
 
         if (!response.ok) throw new Error(`Monkeytype API → ${response.status}: ${await response.text()}`);

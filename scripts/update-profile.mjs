@@ -21,6 +21,7 @@ if (!PROFILE_REPO_TOKEN) {
 
 const PORT = process.env.port || 8080;
 const BASE = `http://localhost:${PORT}`;
+const MONKEYTYPE_API_KEY  = process.env.MONKEYTYPE_API_KEY;
 const MONKEYTYPE_USERNAME = process.env.MONKEYTYPE_USERNAME;
 const REPO = `${username}/${username}`;
 const README_PATH = 'README.md';
@@ -71,7 +72,11 @@ const inject = (content, start, end, section) => {
 const ensureMarkers = (content, sections) => {
     let out = content;
     for (let i = 0; i < sections.length; i++) {
-        const { start, end } = sections[i];
+        const section = sections[i];
+        // Skip optional sections that aren't enabled — don't insert their markers
+        if (section.optional && !section.enabled?.()) continue;
+
+        const { start, end } = section;
         if (out.includes(start)) continue;
 
         const block = `${start}${end}\n`;
@@ -140,6 +145,8 @@ const SECTIONS = [
         key: 'monkeytype',
         start: '<!-- monkeytype-start -->',
         end: '<!-- monkeytype-end -->',
+        optional: true,
+        enabled: () => !!MONKEYTYPE_API_KEY,
         async fetch() {
             console.log('\nFetching Monkeytype stats…');
             const res = await fetch(`${BASE}/monkeytype`);
@@ -213,6 +220,10 @@ const SECTIONS = [
     readme = ensureMarkers(readme, SECTIONS);
 
     for (const section of SECTIONS) {
+        if (section.optional && !section.enabled?.()) {
+            console.log(`\nSkipping ${section.key} (not configured)`);
+            continue;
+        }
         const content = await section.fetch();
         readme = inject(readme, section.start, section.end, content);
     }
