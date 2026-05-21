@@ -1,5 +1,10 @@
 # github-pretty-readme
 
+[![CI](https://github.com/kevinthelago/github-pretty-readme/actions/workflows/cicd.yml/badge.svg)](https://github.com/kevinthelago/github-pretty-readme/actions/workflows/cicd.yml)
+[![Node 22](https://img.shields.io/badge/node-22-brightgreen?logo=node.js&logoColor=white)](https://nodejs.org)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](#)
+[![Live](https://img.shields.io/badge/live-Cloud%20Run-4285F4?logo=googlecloud&logoColor=white)](https://github-pretty-readme-357245595112.us-central1.run.app)
+
 A Node.js/Express service that generates styled SVG graphics and markdown content for GitHub profile READMEs. Fetches your repos, scores your developer profile across five dimensions, renders spider charts per tech category, and pushes everything to your profile repo automatically.
 
 Architecturally similar to [github-readme-stats](https://github.com/anuraghazra/github-readme-stats).

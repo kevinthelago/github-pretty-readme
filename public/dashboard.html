@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard — github-pretty-readme</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:      #0d1117;
+            --surface: #161b22;
+            --border:  rgba(255,255,255,0.08);
+            --text:    rgba(255,255,255,0.85);
+            --muted:   rgba(255,255,255,0.4);
+            --accent:  #58a6ff;
+            --green:   #c3e88d;
+            --red:     #f78c6c;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ── Nav ────────────────────────────────────────────────────────────── */
+        nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 40px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: rgba(13,17,23,0.9);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+        }
+
+        .nav-logo {
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--text);
+            text-decoration: none;
+        }
+        .nav-logo span { color: var(--accent); }
+
+        .nav-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-user img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+        }
+
+        .nav-user span {
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .btn-ghost {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .btn-ghost:hover { border-color: var(--text); color: var(--text); }
+
+        /* ── Layout ─────────────────────────────────────────────────────────── */
+        main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        /* ── Card ───────────────────────────────────────────────────────────── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        /* ── SVG preview images ──────────────────────────────────────────────── */
+        .preview-img {
+            width: 100%;
+            border-radius: 6px;
+            display: block;
+        }
+
+        /* ── Bio ─────────────────────────────────────────────────────────────── */
+        .bio-text {
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--text);
+            min-height: 60px;
+        }
+
+        .bio-text.loading { color: var(--muted); font-style: italic; }
+
+        /* ── Badges ──────────────────────────────────────────────────────────── */
+        .badges-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-height: 32px;
+        }
+
+        .badges-wrap img { height: 22px; border-radius: 3px; }
+
+        /* ── Monkeytype connect ───────────────────────────────────────────────── */
+        .mt-connect {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .mt-connect label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+
+        .mt-connect input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 7px 12px;
+            font-size: 13px;
+            width: 240px;
+        }
+        .mt-connect input:focus { outline: none; border-color: var(--accent); }
+
+        .mt-connected {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .mt-connected span { font-size: 13px; color: var(--green); }
+
+        /* ── Apply section ────────────────────────────────────────────────────── */
+        .btn-primary {
+            background: var(--accent);
+            color: #0d1117;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-primary:hover { opacity: 0.88; }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-sm {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .btn-sm:hover { border-color: var(--text); color: var(--text); }
+
+        /* ── Log output ───────────────────────────────────────────────────────── */
+        .log {
+            margin-top: 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 14px 16px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.8;
+            color: var(--muted);
+            display: none;
+        }
+        .log.visible { display: block; }
+        .log .ok   { color: var(--green); }
+        .log .err  { color: var(--red); }
+        .log .done { color: var(--accent); font-weight: 600; }
+
+        /* ── Status dot ───────────────────────────────────────────────────────── */
+        .status { font-size: 13px; color: var(--muted); margin-top: 10px; }
+        .status.error  { color: var(--red); }
+        .status.success { color: var(--green); }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a class="nav-logo" href="/"><span>github</span>-pretty-readme</a>
+    <div class="nav-user">
+        <img id="avatar" src="" alt="avatar" />
+        <span id="username"></span>
+        <a class="btn-ghost" href="/auth/logout">Disconnect</a>
+    </div>
+</nav>
+
+<main>
+
+    <!-- Developer Rating -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Developer Rating</span>
+        </div>
+        <img class="preview-img" id="rating-img" src="/developer-rating" alt="Developer Rating" />
+    </div>
+
+    <!-- Tech Grid -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Tech Stack</span>
+        </div>
+        <img class="preview-img" id="tech-img" src="" alt="Tech Stack" />
+    </div>
+
+    <!-- Monkeytype -->
+    <div class="card" id="monkeytype-card">
+        <div class="card-header">
+            <span class="card-title">Typing Speed</span>
+            <button class="btn-sm" id="mt-toggle">Connect Monkeytype</button>
+        </div>
+        <div id="mt-connected-view" style="display:none">
+            <img class="preview-img" src="/monkeytype" alt="Typing Speed" id="mt-img" />
+            <div class="mt-connected" style="margin-top:12px">
+                <span>✓ Connected</span>
+                <button class="btn-sm" id="mt-disconnect">Disconnect</button>
+            </div>
+        </div>
+        <div id="mt-connect-form" style="display:none">
+            <div class="mt-connect">
+                <div>
+                    <label for="mt-key">Ape Key</label>
+                    <input id="mt-key" type="password" placeholder="paste your Monkeytype Ape Key" />
+                </div>
+                <div>
+                    <label for="mt-user">Username (optional)</label>
+                    <input id="mt-user" type="text" placeholder="your Monkeytype username" />
+                </div>
+                <button class="btn-sm" id="mt-save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bio -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Generated Bio</span>
+            <button class="btn-sm" id="refresh-bio">Refresh</button>
+        </div>
+        <p class="bio-text loading" id="bio-text">Generating bio…</p>
+    </div>
+
+    <!-- Apply -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Apply to Profile</span>
+        </div>
+        <p style="font-size:14px; color:var(--muted); margin-bottom:16px;">
+            Pushes the bio, rating card, tech grid, badges, and insights report to your
+            <code style="color:var(--accent);">&lt;username&gt;/&lt;username&gt;</code> profile repository.
+        </p>
+        <button class="btn-primary" id="apply-btn">Apply to Profile</button>
+        <p class="status" id="apply-status"></p>
+        <div class="log" id="apply-log"></div>
+    </div>
+
+</main>
+
+<script>
+(async () => {
+    // ── Load user info ─────────────────────────────────────────────────────────
+    const me = await fetch('/auth/me').then(r => r.json()).catch(() => null);
+    if (!me || me.error) { location.href = '/'; return; }
+
+    document.getElementById('avatar').src      = me.avatar;
+    document.getElementById('username').textContent = '@' + me.username;
+
+    // ── Tech grid (auto-detect categories) ─────────────────────────────────────
+    const techImg = document.getElementById('tech-img');
+    try {
+        const cats = await fetch('/tech-categories?limit=8').then(r => r.json());
+        const chartable = cats.filter(c => c.count >= 3);
+        if (chartable.length > 0) {
+            const cols     = chartable.length <= 3 ? chartable.length : Math.ceil(Math.sqrt(chartable.length));
+            const catList  = chartable.map(c => c.category).join(',');
+            techImg.src    = `/tech-spider?type=grid&categories=${catList}&limit=8&columns=${cols}`;
+        } else {
+            techImg.alt = 'No tech data found — add topics to your repos';
+        }
+    } catch {}
+
+    // ── Bio ────────────────────────────────────────────────────────────────────
+    const bioEl = document.getElementById('bio-text');
+
+    const loadBio = async () => {
+        bioEl.className = 'bio-text loading';
+        bioEl.textContent = 'Generating bio…';
+        try {
+            const text = await fetch('/account-summary-md').then(r => r.text());
+            bioEl.textContent = text;
+            bioEl.className = 'bio-text';
+        } catch (err) {
+            bioEl.textContent = 'Failed to generate bio.';
+            bioEl.className = 'bio-text';
+        }
+    };
+
+    loadBio();
+    document.getElementById('refresh-bio').addEventListener('click', loadBio);
+
+    // ── Monkeytype ─────────────────────────────────────────────────────────────
+    const mtToggle    = document.getElementById('mt-toggle');
+    const mtForm      = document.getElementById('mt-connect-form');
+    const mtConnected = document.getElementById('mt-connected-view');
+
+    // Check if already connected by trying to load the card
+    const mtImg = document.getElementById('mt-img');
+    const mtRes = await fetch('/monkeytype');
+    if (mtRes.ok) {
+        mtConnected.style.display = 'block';
+        mtToggle.style.display = 'none';
+    }
+
+    mtToggle.addEventListener('click', () => {
+        mtForm.style.display = mtForm.style.display === 'none' ? 'block' : 'none';
+    });
+
+    document.getElementById('mt-save').addEventListener('click', async () => {
+        const key  = document.getElementById('mt-key').value.trim();
+        const user = document.getElementById('mt-user').value.trim();
+        if (!key) return;
+        const r = await fetch('/monkeytype/connect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: key, username: user || null }),
+        });
+        if (r.ok) {
+            mtImg.src = '/monkeytype';
+            mtForm.style.display = 'none';
+            mtConnected.style.display = 'block';
+            mtToggle.style.display = 'none';
+        }
+    });
+
+    document.getElementById('mt-disconnect').addEventListener('click', async () => {
+        await fetch('/monkeytype/disconnect', { method: 'POST' });
+        mtConnected.style.display = 'none';
+        mtToggle.style.display = 'inline-block';
+        mtImg.src = '';
+    });
+
+    // ── Apply to Profile ────────────────────────────────────────────────────────
+    const applyBtn    = document.getElementById('apply-btn');
+    const applyStatus = document.getElementById('apply-status');
+    const applyLog    = document.getElementById('apply-log');
+
+    applyBtn.addEventListener('click', async () => {
+        applyBtn.disabled = true;
+        applyStatus.textContent = 'Generating and pushing…';
+        applyStatus.className = 'status';
+        applyLog.innerHTML = '';
+        applyLog.classList.add('visible');
+
+        try {
+            const res  = await fetch('/apply-readme');
+            const data = await res.json();
+
+            if (data.steps) {
+                applyLog.innerHTML = data.steps
+                    .map(s => `<div class="${s.startsWith('Done') ? 'done' : 'ok'}">✓ ${s}</div>`)
+                    .join('');
+            }
+
+            if (data.ok) {
+                applyStatus.textContent = '✓ Profile updated successfully';
+                applyStatus.className = 'status success';
+            } else {
+                throw new Error(data.error ?? 'Unknown error');
+            }
+        } catch (err) {
+            applyStatus.textContent = '✗ ' + err.message;
+            applyStatus.className = 'status error';
+            applyLog.innerHTML += `<div class="err">✗ ${err.message}</div>`;
+        } finally {
+            applyBtn.disabled = false;
+        }
+    });
+})();
+</script>
+</body>
+</html>

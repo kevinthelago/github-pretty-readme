@@ -13,8 +13,9 @@ export default async (req, res) => {
     res.setHeader('Content-Type', 'text/plain');
 
     try {
-        const repos = await getAllRepos();
-        if (!repos) return res.status(500).send('GITHUB_TOKEN is not configured');
+        const token = req.session?.github_token ?? process.env.GITHUB_TOKEN;
+        const repos = await getAllRepos(token);
+        if (!repos) return res.status(401).send('GitHub not connected');
 
         const repoData = repos.map(r => ({
             name: r.name,

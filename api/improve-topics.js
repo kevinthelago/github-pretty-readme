@@ -4,8 +4,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-
 const MIN_TOPICS = 3;
 const MAX_TOPICS = 20; // GitHub API hard limit
 
@@ -35,12 +33,12 @@ Example output: ["nodejs", "rest-api", "postgresql", "docker"]`;
     return suggested.filter(t => typeof t === 'string' && /^[a-z0-9][a-z0-9-]*$/.test(t));
 };
 
-const applyTopics = async (owner, repoName, topics) => {
+const applyTopics = async (owner, repoName, topics, token) => {
     const merged = [...new Set(topics)].slice(0, MAX_TOPICS);
     const res = await fetch(`https://api.github.com/repos/${owner}/${repoName}/topics`, {
         method: 'PUT',
         headers: {
-            Authorization: `Bearer ${GITHUB_TOKEN}`,
+            Authorization: `Bearer ${token}`,
             Accept: 'application/vnd.github+json',
             'Content-Type': 'application/json',
         },
@@ -59,15 +57,16 @@ const applyTopics = async (owner, repoName, topics) => {
  *   dry_run   Set to "true" to preview changes without applying them
  */
 export default async (req, res) => {
-    if (!GITHUB_TOKEN) return res.status(500).json({ error: 'GITHUB_TOKEN not configured' });
+    const token = req.session?.github_token ?? process.env.GITHUB_TOKEN;
+    if (!token) return res.status(401).json({ error: 'GitHub not connected' });
 
     const dryRun = req.query.dry_run === 'true';
     const results = { updated: [], skipped: [], errors: [] };
 
     let repos;
     try {
-        repos = await getAllRepos();
-        if (!repos) return res.status(500).json({ error: 'Failed to fetch repos' });
+        repos = await getAllRepos(token);
+        if (!repos) return res.status(401).json({ error: 'GitHub not connected' });
     } catch (err) {
         return res.status(500).json({ error: err.message });
     }
@@ -85,7 +84,7 @@ export default async (req, res) => {
                 continue;
             }
 
-            await applyTopics(repo.owner.login, repo.name, merged);
+            await applyTopics(repo.owner.login, repo.name, merged, token);
             console.log(`  ✓  ${repo.name}: ${merged.join(', ')}`);
             results.updated.push({ repo: repo.name, topics: merged });
         } catch (err) {

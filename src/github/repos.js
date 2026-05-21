@@ -22,16 +22,16 @@ const getContents = (username, repository, path) => {
         })
 }
 
-const getAllRepos = async () => {
-    const token = process.env.GITHUB_TOKEN;
-    if (!token) return null;
+const getAllRepos = async (token) => {
+    const authToken = token ?? process.env.GITHUB_TOKEN;
+    if (!authToken) return null;
 
     const repos = [];
     let page = 1;
 
     while (true) {
         const response = await axios.get('https://api.github.com/user/repos', {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${authToken}` },
             params: { visibility: 'all', affiliation: 'owner', per_page: 100, page },
         });
         repos.push(...response.data);

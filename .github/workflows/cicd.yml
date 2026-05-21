@@ -116,6 +116,12 @@ jobs:
           region:  ${{ vars.GCP_REGION }}
           image:   ${{ env.IMAGE }}:${{ github.sha }}
           flags:   --allow-unauthenticated
+          env_vars: |
+            BASE_URL=https://github-pretty-readme-357245595112.us-central1.run.app
+            NODE_ENV=production
           secrets: |
             GITHUB_TOKEN=GH_PAT:latest
             GOOGLE_AI_STUDIO_KEY=GOOGLE_AI_STUDIO_KEY:latest
+            GITHUB_APP_CLIENT_ID=GITHUB_APP_CLIENT_ID:latest
+            GITHUB_APP_CLIENT_SECRET=GITHUB_APP_CLIENT_SECRET:latest
+            SESSION_SECRET=SESSION_SECRET:latest

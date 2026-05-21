@@ -20,8 +20,9 @@ export default async (req, res) => {
     res.setHeader('Content-Type', 'image/svg+xml');
 
     try {
-        const repos = await getAllRepos();
-        if (!repos) return res.status(500).send('GITHUB_TOKEN is not configured');
+        const token = req.session?.github_token ?? process.env.GITHUB_TOKEN;
+        const repos = await getAllRepos(token);
+        if (!repos) return res.status(401).send('GitHub not connected');
 
         const requestedCategories = categoriesParam.split(',').map(s => s.trim().toLowerCase());
         const limit = Math.min(parseInt(limitParam, 10) || 8, 16);
