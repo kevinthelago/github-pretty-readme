@@ -52,9 +52,11 @@ export const authLogout = (req, res) => {
 export const authMe = (req, res) => {
     if (!req.session?.github_token) return res.status(401).json({ error: 'Not authenticated' });
     res.json({
-        username: req.session.github_username,
-        avatar:   req.session.github_avatar,
-        name:     req.session.github_name,
+        username:            req.session.github_username,
+        avatar:              req.session.github_avatar,
+        name:                req.session.github_name,
+        monkeytype_connected: !!req.session.monkeytype_key,
+        monkeytype_username:  req.session.monkeytype_username ?? null,
     });
 };
 

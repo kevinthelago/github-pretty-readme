@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard — github-pretty-readme</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -68,6 +69,7 @@
             transition:border-color 0.2s,color 0.2s;
         }
         .btn-sm:hover { border-color:var(--text); color:var(--text); }
+        .btn-sm:disabled { opacity:0.4; cursor:not-allowed; }
 
         /* ── Layout ── */
         .layout {
@@ -86,22 +88,39 @@
             overflow-y: auto;
         }
 
-        .pane-title {
-            font-size: 11px;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: var(--muted);
+        /* ── Tabs ── */
+        .tab-bar {
+            display: flex;
+            gap: 4px;
             margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0;
         }
+        .tab {
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--muted);
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+            margin-bottom: -1px;
+        }
+        .tab:hover { color: var(--text); }
+        .tab.active { color: var(--text); border-bottom-color: var(--accent); }
 
-        /* GitHub profile mockup */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ── GitHub profile mockup ── */
         .gh-profile {
             background: #0d1117;
             border: 1px solid var(--border);
             border-radius: 10px;
             overflow: hidden;
         }
-
         .gh-profile-header {
             background: #161b22;
             border-bottom: 1px solid var(--border);
@@ -111,16 +130,7 @@
             gap: 8px;
         }
         .gh-dot { width:12px; height:12px; border-radius:50%; background:var(--border); }
-
-        .gh-profile-body {
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .gh-section { }
-
+        .gh-profile-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
         .gh-section-label {
             font-size: 11px;
             letter-spacing: 2px;
@@ -130,26 +140,12 @@
             padding-bottom: 6px;
             border-bottom: 1px solid var(--border);
         }
-
-        .gh-bio {
-            font-size: 14px;
-            line-height: 1.7;
-            color: var(--text);
-            min-height: 44px;
-        }
+        .gh-bio { font-size: 14px; line-height: 1.7; color: var(--text); min-height: 44px; }
         .gh-bio.placeholder { color: var(--muted); font-style: italic; }
-
         .gh-img { width: 100%; border-radius: 6px; display: block; }
-
-        .gh-badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            min-height: 28px;
-        }
+        .gh-badges { display: flex; flex-wrap: wrap; gap: 5px; min-height: 28px; }
         .gh-badges img { height: 20px; }
         .gh-badges.placeholder { color: var(--muted); font-size: 13px; font-style: italic; align-items: center; }
-
         .img-placeholder {
             background: var(--surface);
             border-radius: 6px;
@@ -160,6 +156,92 @@
             color: var(--muted);
             font-size: 13px;
         }
+
+        /* ── Insights tab ── */
+        .insights-gate {
+            padding: 32px;
+            text-align: center;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface);
+        }
+        .insights-gate p { font-size:13px; color:var(--muted); margin-bottom:16px; line-height:1.6; }
+        .insights-loading {
+            display: none;
+            padding: 40px;
+            text-align: center;
+        }
+        .loading-dots { font-size: 14px; color: var(--muted); }
+        .loading-dots span { display:inline-block; animation: blink 1.4s infinite; }
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+
+        /* ── Markdown body ── */
+        .markdown-body {
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text);
+        }
+        .markdown-body h1 {
+            font-size: 22px; font-weight: 700;
+            margin: 0 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .markdown-body h2 {
+            font-size: 17px; font-weight: 600;
+            margin: 28px 0 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+        .markdown-body h3 { font-size: 14px; font-weight: 600; margin: 16px 0 8px; }
+        .markdown-body p { margin: 0 0 12px; }
+        .markdown-body em { color: var(--muted); }
+        .markdown-body strong { color: var(--text); }
+        .markdown-body a { color: var(--accent); text-decoration: none; }
+        .markdown-body a:hover { text-decoration: underline; }
+        .markdown-body code {
+            background: rgba(255,255,255,0.08);
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: 'SF Mono','Fira Code',monospace;
+            font-size: 12px;
+        }
+        .markdown-body pre {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            margin: 0 0 12px;
+            overflow-x: auto;
+        }
+        .markdown-body pre code { background: none; padding: 0; }
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 0 16px;
+            font-size: 13px;
+        }
+        .markdown-body th {
+            background: rgba(255,255,255,0.06);
+            font-weight: 600;
+        }
+        .markdown-body th, .markdown-body td {
+            padding: 7px 12px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+        .markdown-body tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+        .markdown-body blockquote {
+            border-left: 3px solid var(--accent);
+            padding: 2px 16px;
+            margin: 0 0 12px;
+            color: var(--muted);
+        }
+        .markdown-body ul, .markdown-body ol { padding-left: 20px; margin: 0 0 12px; }
+        .markdown-body li { margin: 3px 0; }
+        .markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
 
         /* ── Right: Controls pane ── */
         .controls-pane {
@@ -176,14 +258,12 @@
             border-radius: 10px;
             padding: 20px;
         }
-
         .card-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 14px;
         }
-
         .card-title {
             font-size: 12px;
             font-weight: 600;
@@ -194,13 +274,15 @@
 
         /* Monkeytype connect */
         .mt-row { display:flex; flex-direction:column; gap:10px; }
-        .mt-row label { font-size:12px; color:var(--muted); display:block; margin-bottom:3px; }
-        .mt-row input {
+        .mt-field { display:flex; flex-direction:column; gap:3px; }
+        .mt-field label { font-size:12px; color:var(--muted); }
+        .mt-field input {
             background:var(--bg); border:1px solid var(--border); border-radius:6px;
             color:var(--text); padding:7px 10px; font-size:13px; width:100%;
         }
-        .mt-row input:focus { outline:none; border-color:var(--accent); }
+        .mt-field input:focus { outline:none; border-color:var(--accent); }
         .mt-status { font-size:12px; color:var(--green); }
+        .mt-error { font-size:12px; color:var(--red); margin-top:8px; display:none; }
 
         /* Apply log */
         .log {
@@ -246,47 +328,69 @@
 
 <div class="layout">
 
-    <!-- ── Left: README preview ──────────────────────────────────────────── -->
+    <!-- ── Left: Preview pane ─────────────────────────────────────────────── -->
     <div class="preview-pane">
-        <p class="pane-title">README Preview</p>
 
-        <div class="gh-profile">
-            <div class="gh-profile-header">
-                <div class="gh-dot"></div>
-                <div class="gh-dot"></div>
-                <div class="gh-dot"></div>
-            </div>
-            <div class="gh-profile-body">
+        <div class="tab-bar">
+            <button class="tab active" data-tab="profile">Profile</button>
+            <button class="tab" data-tab="insights">Developer Insights</button>
+        </div>
 
-                <div class="gh-section">
-                    <div class="gh-section-label">Bio</div>
-                    <p class="gh-bio placeholder" id="bio-text">Generating bio…</p>
+        <!-- Profile tab -->
+        <div class="tab-content active" id="tab-profile">
+            <div class="gh-profile">
+                <div class="gh-profile-header">
+                    <div class="gh-dot"></div>
+                    <div class="gh-dot"></div>
+                    <div class="gh-dot"></div>
                 </div>
+                <div class="gh-profile-body">
 
-                <div class="gh-section">
-                    <div class="gh-section-label">Developer Rating</div>
-                    <div class="img-placeholder" id="rating-placeholder">Loading…</div>
-                    <img class="gh-img" id="rating-img" src="/developer-rating" alt="Developer Rating" style="display:none" />
+                    <div class="gh-section">
+                        <div class="gh-section-label">Bio</div>
+                        <p class="gh-bio placeholder" id="bio-text">Generating bio…</p>
+                    </div>
+
+                    <div class="gh-section">
+                        <div class="gh-section-label">Developer Rating</div>
+                        <div class="img-placeholder" id="rating-placeholder">Loading…</div>
+                        <img class="gh-img" id="rating-img" src="/developer-rating" alt="Developer Rating" style="display:none" />
+                    </div>
+
+                    <div class="gh-section" id="mt-section" style="display:none">
+                        <div class="gh-section-label">Typing Speed</div>
+                        <img class="gh-img" id="mt-preview-img" src="" alt="Typing Speed" />
+                    </div>
+
+                    <div class="gh-section">
+                        <div class="gh-section-label">Tech Stack</div>
+                        <div class="img-placeholder" id="tech-placeholder">Loading…</div>
+                        <img class="gh-img" id="tech-img" src="" alt="Tech Stack" style="display:none" />
+                    </div>
+
+                    <div class="gh-section">
+                        <div class="gh-section-label">Languages &amp; Tools</div>
+                        <div class="gh-badges placeholder" id="badges-area">Loading badges…</div>
+                    </div>
+
                 </div>
-
-                <div class="gh-section" id="mt-section" style="display:none">
-                    <div class="gh-section-label">Typing Speed</div>
-                    <img class="gh-img" id="mt-preview-img" src="/monkeytype" alt="Typing Speed" />
-                </div>
-
-                <div class="gh-section">
-                    <div class="gh-section-label">Tech Stack</div>
-                    <div class="img-placeholder" id="tech-placeholder">Loading…</div>
-                    <img class="gh-img" id="tech-img" src="" alt="Tech Stack" style="display:none" />
-                </div>
-
-                <div class="gh-section">
-                    <div class="gh-section-label">Languages &amp; Tools</div>
-                    <div class="gh-badges placeholder" id="badges-area">Loading badges…</div>
-                </div>
-
             </div>
         </div>
+
+        <!-- Insights tab -->
+        <div class="tab-content" id="tab-insights">
+            <div class="insights-gate" id="insights-gate">
+                <p>Generates a full developer insights report including CI/deployment metrics and AI-powered growth recommendations.<br>This may take 30–60 seconds.</p>
+                <button class="btn-sm" id="load-insights-btn" style="margin:0 auto">Generate Insights Preview</button>
+                <p class="mt-error" id="insights-error" style="display:none;text-align:center;margin-top:10px"></p>
+            </div>
+            <div class="insights-loading" id="insights-loading">
+                <div class="loading-dots">Generating insights<span>.</span><span>.</span><span>.</span></div>
+                <p style="font-size:12px;color:var(--muted);margin-top:10px">Fetching GitHub data and calling Gemini AI…</p>
+            </div>
+            <div class="markdown-body" id="insights-body"></div>
+        </div>
+
     </div>
 
     <!-- ── Right: Controls ───────────────────────────────────────────────── -->
@@ -309,19 +413,21 @@
             </div>
             <div id="mt-connect-form">
                 <div class="mt-row">
-                    <div>
-                        <label for="mt-key">Ape Key <span style="color:var(--muted);font-weight:400">(from monkeytype.com/settings)</span></label>
+                    <div class="mt-field">
+                        <label for="mt-key">Ape Key <span style="font-weight:400">(from monkeytype.com/settings)</span></label>
                         <input id="mt-key" type="password" placeholder="paste your Ape Key…" />
                     </div>
-                    <div>
-                        <label for="mt-user">Username <span style="color:var(--muted);font-weight:400">(optional, for profile link)</span></label>
+                    <div class="mt-field">
+                        <label for="mt-user">Username <span style="font-weight:400">(optional, for profile link)</span></label>
                         <input id="mt-user" type="text" placeholder="your Monkeytype username" />
                     </div>
                     <button class="btn-sm" id="mt-save" style="align-self:flex-start">Connect</button>
+                    <p class="mt-error" id="mt-error"></p>
                 </div>
             </div>
             <div id="mt-connected" style="display:none">
-                <button class="btn-sm" id="mt-disconnect">Disconnect Monkeytype</button>
+                <p style="font-size:13px;color:var(--muted);margin-bottom:12px" id="mt-connected-label">Monkeytype is connected.</p>
+                <button class="btn-sm" id="mt-disconnect">Disconnect</button>
             </div>
         </div>
 
@@ -351,9 +457,19 @@
     const me = await fetch('/auth/me').then(r => r.ok ? r.json() : null).catch(() => null);
     if (!me || me.error) { location.href = '/'; return; }
 
-    document.getElementById('nav-avatar').src       = me.avatar;
-    document.getElementById('nav-username').textContent = '@' + me.username;
-    document.getElementById('repo-label').textContent  = `${me.username}/${me.username}`;
+    document.getElementById('nav-avatar').src           = me.avatar;
+    document.getElementById('nav-username').textContent  = '@' + me.username;
+    document.getElementById('repo-label').textContent    = `${me.username}/${me.username}`;
+
+    // ── Tabs ───────────────────────────────────────────────────────────────────
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+        });
+    });
 
     // ── Bio ────────────────────────────────────────────────────────────────────
     const bioEl = document.getElementById('bio-text');
@@ -419,37 +535,104 @@
     const mtForm      = document.getElementById('mt-connect-form');
     const mtConnected = document.getElementById('mt-connected');
     const mtPreview   = document.getElementById('mt-preview-img');
+    const mtError     = document.getElementById('mt-error');
+    const mtLabel     = document.getElementById('mt-connected-label');
 
-    const checkMonkeytype = async () => {
-        const r = await fetch('/monkeytype');
-        if (r.ok) {
-            mtSection.style.display   = 'block';
-            mtStatus.style.display    = 'inline';
-            mtForm.style.display      = 'none';
-            mtConnected.style.display = 'block';
-            mtPreview.src = '/monkeytype?' + Date.now();
-        }
+    const showMtConnected = (username) => {
+        mtStatus.style.display    = 'inline';
+        mtForm.style.display      = 'none';
+        mtConnected.style.display = 'block';
+        mtLabel.textContent = username
+            ? `Connected as ${username}.`
+            : 'Monkeytype is connected.';
     };
-    checkMonkeytype();
+
+    const showMtDisconnected = () => {
+        mtStatus.style.display    = 'none';
+        mtForm.style.display      = 'block';
+        mtConnected.style.display = 'none';
+        mtSection.style.display   = 'none';
+        mtPreview.src = '';
+    };
+
+    const tryMtPreview = () => {
+        mtPreview.onerror = () => {
+            mtSection.style.display = 'none';
+        };
+        mtPreview.onload = () => {
+            mtSection.style.display = 'block';
+        };
+        mtPreview.src = '/monkeytype?' + Date.now();
+    };
+
+    // Restore state from session (reported by /auth/me)
+    if (me.monkeytype_connected) {
+        showMtConnected(me.monkeytype_username);
+        tryMtPreview();
+    }
 
     document.getElementById('mt-save').addEventListener('click', async () => {
         const key  = document.getElementById('mt-key').value.trim();
         const user = document.getElementById('mt-user').value.trim();
-        if (!key) return;
-        const r = await fetch('/monkeytype/connect', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ api_key: key, username: user || null }),
-        });
-        if (r.ok) checkMonkeytype();
+        if (!key) { mtError.textContent = 'Please enter your Ape Key.'; mtError.style.display = 'block'; return; }
+
+        const saveBtn = document.getElementById('mt-save');
+        saveBtn.disabled    = true;
+        saveBtn.textContent = 'Connecting…';
+        mtError.style.display = 'none';
+
+        try {
+            const r = await fetch('/monkeytype/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: key, username: user || null }),
+            });
+            if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? 'Failed to save key'); }
+
+            showMtConnected(user || null);
+            tryMtPreview();
+        } catch (err) {
+            mtError.textContent   = '✗ ' + err.message;
+            mtError.style.display = 'block';
+        } finally {
+            saveBtn.disabled    = false;
+            saveBtn.textContent = 'Connect';
+        }
     });
 
     document.getElementById('mt-disconnect').addEventListener('click', async () => {
         await fetch('/monkeytype/disconnect', { method: 'POST' });
-        mtSection.style.display   = 'none';
-        mtStatus.style.display    = 'none';
-        mtForm.style.display      = 'block';
-        mtConnected.style.display = 'none';
+        showMtDisconnected();
+    });
+
+    // ── Developer Insights preview ─────────────────────────────────────────────
+    let insightsLoaded = false;
+    const insightsGate    = document.getElementById('insights-gate');
+    const insightsLoading = document.getElementById('insights-loading');
+    const insightsBody    = document.getElementById('insights-body');
+    const insightsError   = document.getElementById('insights-error');
+
+    document.getElementById('load-insights-btn').addEventListener('click', async () => {
+        if (insightsLoaded) return;
+        insightsGate.style.display    = 'none';
+        insightsLoading.style.display = 'block';
+        insightsError.style.display   = 'none';
+
+        try {
+            const text = await fetch('/developer-rating-insights').then(r => {
+                if (!r.ok) return r.text().then(t => { throw new Error(t || r.statusText); });
+                return r.text();
+            });
+            insightsLoading.style.display = 'none';
+            insightsBody.innerHTML = marked.parse(text);
+            insightsBody.style.display = 'block';
+            insightsLoaded = true;
+        } catch (err) {
+            insightsLoading.style.display = 'none';
+            insightsGate.style.display    = 'block';
+            insightsError.textContent     = '✗ ' + err.message;
+            insightsError.style.display   = 'block';
+        }
     });
 
     // ── Apply to Profile ───────────────────────────────────────────────────────
@@ -458,8 +641,8 @@
     const applyLog    = document.getElementById('apply-log');
 
     applyBtn.addEventListener('click', async () => {
-        applyBtn.disabled     = true;
-        applyStatus.className = 'apply-status';
+        applyBtn.disabled       = true;
+        applyStatus.className   = 'apply-status';
         applyStatus.textContent = 'Generating and pushing to GitHub…';
         applyLog.innerHTML = '';
         applyLog.classList.add('visible');
@@ -477,6 +660,11 @@
             if (data.ok) {
                 applyStatus.textContent = '✓ Profile updated — view it at github.com/' + me.username;
                 applyStatus.className   = 'apply-status success';
+                // Invalidate cached insights so the next view reflects the push
+                insightsLoaded = false;
+                insightsBody.innerHTML = '';
+                insightsBody.style.display = 'none';
+                insightsGate.style.display = 'block';
             } else {
                 throw new Error(data.error ?? 'Unknown error');
             }
