@@ -62,6 +62,8 @@ export const authMe = (req, res) => {
 };
 
 export const requireAuth = (req, res, next) => {
-    if (!req.session?.github_token) return res.redirect('/');
-    next();
+    if (req.session?.github_token) return next();
+    // Allow PAT-based access for scheduled GitHub Actions workflows
+    if (req.headers.authorization?.startsWith('Bearer ')) return next();
+    return res.redirect('/');
 };

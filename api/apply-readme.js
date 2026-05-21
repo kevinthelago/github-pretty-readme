@@ -431,8 +431,24 @@ export async function generateProfile(token, username, monkeyOptions = {}) {
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export default async (req, res) => {
-    const token    = req.session?.github_token;
-    const username = req.session?.github_username;
+    // Session-based auth (web UI)
+    let token    = req.session?.github_token;
+    let username = req.session?.github_username;
+
+    // PAT-based auth (scheduled GitHub Actions workflow)
+    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+        token = req.headers.authorization.slice(7);
+        try {
+            const userRes = await fetch('https://api.github.com/user', {
+                headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+            });
+            if (!userRes.ok) return res.status(401).json({ error: 'Invalid token' });
+            username = (await userRes.json()).login;
+        } catch {
+            return res.status(401).json({ error: 'Failed to verify token' });
+        }
+    }
+
     if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
 
     const dryRun = req.query.dry_run === 'true';
@@ -497,7 +513,24 @@ export default async (req, res) => {
         await putFile(token, repo, README_PATH, readme, readmeFile.sha, 'chore: update profile summary and charts');
         await pushAsset(token, repo, 'DEVELOPER_INSIGHTS.md', profile.insightsMd);
 
-        profile.steps.push('Done.');
+        const serviceUrl  = process.env.BASE_URL ?? 'https://github-pretty-readme.azurewebsites.net';
+        const workflowYml = `name: Refresh GitHub Profile
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update profile README
+        run: >-
+          curl -f "${serviceUrl}/apply-readme"
+          -H "Authorization: Bearer \${{ secrets.GH_PAT }}"
+`;
+        await pushAsset(token, repo, '.github/workflows/update-profile.yml', workflowYml);
+        profile.steps.push('Pushed .github/workflows/update-profile.yml.');
+        profile.steps.push('Done. Add a GH_PAT secret to your profile repo to activate the daily schedule.');
         res.json({ ok: true, steps: profile.steps });
     } catch (err) {
         console.error('[apply-readme]', err.message);
