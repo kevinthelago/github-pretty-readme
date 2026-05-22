@@ -4,7 +4,8 @@ const ghHeaders = (token) => ({
     'Content-Type': 'application/json',
 });
 
-const getDefaultBranch = async (token, owner, repo) => {
+/** Returns { defaultBranch, sha } for a repo's default branch tip. */
+export const getRepoInfo = async (token, owner, repo) => {
     const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers: ghHeaders(token) });
     if (!res.ok) throw new Error(`GET repo → ${res.status}`);
     const { default_branch } = await res.json();
@@ -21,9 +22,10 @@ const getDefaultBranch = async (token, owner, repo) => {
  * Creates a branch off the current default branch tip.
  * If the branch already exists it is force-reset to the default branch tip
  * (so the PR always shows only the new changes from this run).
+ * Pass prefetched = { defaultBranch, sha } to skip the repo-info API call.
  */
-export const ensureBranch = async (token, owner, repo, branchName) => {
-    const { defaultBranch, sha } = await getDefaultBranch(token, owner, repo);
+export const ensureBranch = async (token, owner, repo, branchName, prefetched) => {
+    const { defaultBranch, sha } = prefetched ?? await getRepoInfo(token, owner, repo);
 
     const createRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs`, {
         method: 'POST',

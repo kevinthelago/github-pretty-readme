@@ -4,7 +4,8 @@ import { analyzeRepo }                                           from '../src/ai
 import { scanCache }                                             from '../src/scan-cache.js';
 import { generateScoreReport, generateReadmeFromOutline }        from '../src/markdown/score-report.js';
 import { readConfig }                                            from '../src/github/config.js';
-import { ensureBranch, getFileSha, putFile, openOrUpdatePR }    from '../src/github/pr-writer.js';
+import { readState, writeState }                                 from '../src/github/run-state.js';
+import { getRepoInfo, ensureBranch, getFileSha, putFile, openOrUpdatePR } from '../src/github/pr-writer.js';
 import { GoogleGenerativeAI }                                    from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
@@ -59,13 +60,22 @@ const applyDescription = async (owner, repoName, description, token) => {
     if (!res.ok) throw new Error(`Description PATCH → ${res.status}: ${await res.text()}`);
 };
 
+const hasScoreMd = async (token, owner, repo) => {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/SCORE.md`, {
+        headers: ghHeaders(token),
+    });
+    return res.status === 200;
+};
+
 const todayBranch = () => {
     const d = new Date();
     return `pretty-readme/${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 };
 
-const buildPRBody = ({ scorePushed, readmePushed, topicsApplied, descriptionApplied, grade, score }) => {
+const buildPRBody = ({ scorePushed, readmePushed, topicsApplied, descriptionApplied, grade, score, isFirstRun, headSha }) => {
     const lines = ['Automated update from [github-pretty-readme](https://github.com/kevinthelago/github-pretty-readme).\n'];
+
+    if (headSha) lines.push(`> Based on commit \`${headSha.slice(0, 7)}\`\n`);
 
     if (scorePushed || readmePushed) {
         lines.push('### Files changed');
@@ -86,22 +96,31 @@ const buildPRBody = ({ scorePushed, readmePushed, topicsApplied, descriptionAppl
     }
 
     lines.push('---');
-    lines.push('*Topics and description were applied immediately. Merge this PR to apply the file changes.*');
+    lines.push(isFirstRun
+        ? '*First run — no prior state recorded for this repo.*'
+        : '*Topics and description were applied immediately. Merge this PR to apply the file changes.*');
     return lines.join('\n');
 };
 
 /**
  * GET /apply-all
  *
- * Reads the allowlist from .pretty-readme.json in the user's profile repo.
- * For each allowlisted repo:
- *   - Topics/descriptions are applied immediately (metadata, not file-based).
- *   - SCORE.md / README.md are pushed to a `pretty-readme/YYYY-MM-DD` branch
- *     and a PR is opened (or updated if the branch already existed).
+ * Skip logic (per repo):
+ *   - Fetches the HEAD SHA of the default branch (one fast API call).
+ *   - If .pretty-readme-state.json records the same SHA as last run → skip.
+ *   - If no state entry + no SCORE.md present → first run → proceed.
+ *   - If no state entry + SCORE.md exists → state was lost → re-run to resync.
+ *   - If SHA differs → new commits since last run → proceed, update the PR.
+ *   State is written back to the profile repo at the end of the run.
  *
- * Query params:
- *   score=true        Include SCORE.md in the PR
- *   readme=true       Include README.md in the PR
+ * Scope (repos query param):
+ *   repos=*          → all eligible repos (UI mode, no config needed)
+ *   repos=a,b,c      → specific repos (UI mode)
+ *   repos absent     → require .pretty-readme.json allowlist (cron mode)
+ *
+ * Feature flags:
+ *   score=true        Push SCORE.md via PR
+ *   readme=true       Push README.md via PR
  *   topics=true       Apply AI topics immediately
  *   descriptions=true Apply AI descriptions immediately
  */
@@ -119,6 +138,15 @@ export default async (req, res) => {
     const log   = (msg) => { steps.push(msg); console.log(`[apply-all] ${msg}`); };
 
     try {
+        // ── Load run state (best-effort — don't abort if unavailable) ──────────
+        let runState = { repos: {} };
+        let stateSha = null;
+        try {
+            ({ state: runState, sha: stateSha } = await readState(token, username));
+        } catch (err) {
+            log(`Warning: could not load run state (${err.message}) — all repos will be processed.`);
+        }
+
         // ── Fetch repos ────────────────────────────────────────────────────────
         const allRepos = await getAllRepos(token);
         if (!allRepos) return res.status(401).json({ error: 'Failed to fetch repos' });
@@ -126,9 +154,6 @@ export default async (req, res) => {
         const eligible = allRepos.filter(r => !r.archived && !r.fork && r.name !== username);
 
         // ── Determine target set ───────────────────────────────────────────────
-        // repos=*          → all eligible (UI "All Repositories" mode, no config needed)
-        // repos=a,b,c      → specific repos by name (UI "Select Repositories" mode)
-        // repos absent     → require .pretty-readme.json allowlist (cron job mode)
         let targets;
         if (req.query.repos === '*') {
             targets = eligible;
@@ -154,15 +179,45 @@ export default async (req, res) => {
 
         log(`Processing ${targets.length} repo(s).`);
 
-        const branchName = todayBranch();
-        const results    = [];
+        const branchName  = todayBranch();
+        const results     = [];
+        let   stateChanged = false;
 
         for (const repo of targets) {
-            const fullRepo = `${username}/${repo.name}`;
-            const repoLog  = [];
-            const meta     = { topicsApplied: null, descriptionApplied: null, scorePushed: false, readmePushed: false };
-
             log(`\n── ${repo.name} ──`);
+            const repoLog = [];
+
+            // ── Fetch HEAD SHA (also used later by ensureBranch) ───────────────
+            let repoInfo;
+            try {
+                repoInfo = await getRepoInfo(token, username, repo.name);
+            } catch (err) {
+                log(`  ✗ Could not fetch repo info: ${err.message}`);
+                repoLog.push(`✗ Skipped — ${err.message}`);
+                results.push({ repo: repo.name, log: repoLog });
+                continue;
+            }
+            const { sha: headSha } = repoInfo;
+
+            // ── Skip check ────────────────────────────────────────────────────
+            const lastEntry = runState.repos?.[repo.name];
+            if (lastEntry?.lastCommitSha && lastEntry.lastCommitSha === headSha) {
+                log(`  — Skipped (no commits since ${lastEntry.lastRunAt ?? 'last run'}).`);
+                repoLog.push(`— Skipped — no new commits since last run (${headSha.slice(0, 7)}).`);
+                results.push({ repo: repo.name, log: repoLog, skipped: true });
+                continue;
+            }
+
+            // ── Determine run reason ──────────────────────────────────────────
+            const isFirstRun = !lastEntry;
+            if (isFirstRun) {
+                const signed = await hasScoreMd(token, username, repo.name).catch(() => false);
+                log(`  ${signed ? '↻ Re-run (state lost, SCORE.md found).' : '★ First run.'}`);
+            } else {
+                log(`  ↻ New commits detected (${lastEntry.lastCommitSha?.slice(0, 7)} → ${headSha.slice(0, 7)}).`);
+            }
+
+            const meta = { topicsApplied: null, descriptionApplied: null, scorePushed: false, readmePushed: false, isFirstRun, headSha };
 
             // ── Apply topics immediately ───────────────────────────────────────
             if (doTopics && (repo.topics?.length ?? 0) < MIN_TOPICS) {
@@ -203,12 +258,13 @@ export default async (req, res) => {
                         scanCache.set(username, repo.name, analysis);
                     }
 
-                    const { defaultBranch } = await ensureBranch(token, username, repo.name, branchName);
+                    // Pass prefetched repoInfo so ensureBranch skips a redundant API call
+                    const { defaultBranch } = await ensureBranch(token, username, repo.name, branchName, repoInfo);
                     log(`  Branch ${branchName} ready (base: ${defaultBranch}).`);
 
                     if (doScore) {
-                        const scoreMd  = generateScoreReport(repo.name, analysis);
-                        const sha      = await getFileSha(token, username, repo.name, 'SCORE.md', branchName);
+                        const scoreMd = generateScoreReport(repo.name, analysis);
+                        const sha     = await getFileSha(token, username, repo.name, 'SCORE.md', branchName);
                         await putFile(token, username, repo.name, 'SCORE.md', scoreMd, sha, 'chore: update code quality report', branchName);
                         meta.scorePushed = true;
                         meta.grade  = analysis.codeQuality?.grade;
@@ -244,10 +300,27 @@ export default async (req, res) => {
                 }
             }
 
+            // ── Record new state for this repo ────────────────────────────────
+            runState.repos[repo.name] = {
+                lastCommitSha: headSha,
+                lastRunAt:     new Date().toISOString(),
+            };
+            stateChanged = true;
+
             results.push({ repo: repo.name, log: repoLog });
         }
 
-        log('\nDone.');
+        // ── Persist state ──────────────────────────────────────────────────────
+        if (stateChanged) {
+            try {
+                await writeState(token, username, runState, stateSha);
+                log('\nRun state saved.');
+            } catch (err) {
+                log(`\nWarning: could not save run state — ${err.message}`);
+            }
+        }
+
+        log('Done.');
         res.json({ ok: true, steps, results });
     } catch (err) {
         console.error('[apply-all]', err.message);
