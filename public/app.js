@@ -282,6 +282,7 @@ const buildRepoParams = () => {
     if (selectedFeats.has('readme'))       params.set('readme',       'true');
     if (selectedFeats.has('topics'))       params.set('topics',       'true');
     if (selectedFeats.has('descriptions')) params.set('descriptions', 'true');
+    if (selectedFeats.has('workflow'))     params.set('workflow',     'true');
     if (repoScopeMode === 'all') {
         params.set('repos', '*');
     } else {
@@ -321,7 +322,7 @@ const runSSE = (url, minPct = 0, maxPct = 100) => new Promise((resolve, reject) 
     };
     es.onerror = () => { es.close(); reject(new Error('Connection lost')); };
 });
-const REPO_FEAT_IDS = ['score', 'readme', 'topics', 'descriptions'];
+const REPO_FEAT_IDS = ['score', 'readme', 'topics', 'descriptions', 'workflow'];
 let   selectedFeats  = new Set(['profile']);
 let   repoScopeMode  = 'all';   // 'all' | 'select'
 let   selectedRepos  = new Set(); // used when repoScopeMode === 'select'
@@ -362,7 +363,7 @@ const runApply = async (allBtns) => {
             applyMsg.textContent   = `Applying to ${repo}…`;
             applyMsg.style.display = 'block';
             setProgress(10, `Scoring ${repo}…`);
-            const url  = `/repo-apply?repo=${encodeURIComponent(repo)}${generateReadme ? '&readme=true' : ''}`;
+            const url  = `/repo-apply?repo=${encodeURIComponent(repo)}${generateReadme ? '&readme=true' : ''}${selectedFeats.has('workflow') ? '&workflow=true' : ''}`;
             const data = await fetch(url).then(r => r.json());
             (data.steps ?? []).forEach(s => {
                 const cls = s.startsWith('Done') ? 'done' : s.startsWith('  ✗') ? 'err' : 'ok';

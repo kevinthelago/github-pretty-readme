@@ -70,7 +70,8 @@ export default async (req, res) => {
     if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
 
     const repoParam      = req.query.repo?.trim();
-    const generateReadme = req.query.readme === 'true';
+    const generateReadme = req.query.readme    === 'true';
+    const pushWorkflow   = req.query.workflow  === 'true';
     if (!repoParam) return res.status(400).json({ error: 'Missing ?repo= parameter' });
 
     const fullRepo = repoParam.includes('/') ? repoParam : `${username}/${repoParam}`;
@@ -122,11 +123,11 @@ export default async (req, res) => {
             }
         }
 
-        // Push workflow if not already present in the repo
+        // Push workflow if requested and not already present in the repo
         const serviceUrl   = process.env.BASE_URL ?? 'http://localhost:8080';
         const workflowPath = '.github/workflows/pretty-readme-score.yml';
-        const existingWf   = await getFile(token, fullRepo, workflowPath);
-        if (!existingWf) {
+        const existingWf   = pushWorkflow ? await getFile(token, fullRepo, workflowPath) : { exists: true };
+        if (pushWorkflow && !existingWf) {
             const workflowYml = [
                 'name: Update Code Quality Score',
                 'on:',

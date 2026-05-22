@@ -134,6 +134,7 @@ export default async (req, res) => {
     const doReadme       = req.query.readme       === 'true';
     const doTopics       = req.query.topics       === 'true';
     const doDescriptions = req.query.descriptions === 'true';
+    const doWorkflow     = req.query.workflow     === 'true';
 
     const isSSE = req.headers.accept?.includes('text/event-stream');
     if (isSSE) {
@@ -268,22 +269,26 @@ export default async (req, res) => {
             }
 
             // ── File changes via PR ────────────────────────────────────────────
-            if (doScore || doReadme) {
+            if (doScore || doReadme || doWorkflow) {
                 try {
-                    let analysis = scanCache.get(username, repo.name);
-                    if (!analysis) {
-                        send?.({ type: 'progress', pct: repoPct(30), msg: `Scanning ${repo.name}…` });
-                        log(`  Scanning ${repo.name}…`);
-                        const snapshot = await getRepoSnapshot(token, username, repo.name);
-                        analysis       = await analyzeRepo(snapshot);
-                        scanCache.set(username, repo.name, analysis);
+                    // Analysis is only needed for score/readme, not workflow-only runs
+                    let analysis = null;
+                    if (doScore || doReadme) {
+                        analysis = scanCache.get(username, repo.name);
+                        if (!analysis) {
+                            send?.({ type: 'progress', pct: repoPct(30), msg: `Scanning ${repo.name}…` });
+                            log(`  Scanning ${repo.name}…`);
+                            const snapshot = await getRepoSnapshot(token, username, repo.name);
+                            analysis       = await analyzeRepo(snapshot);
+                            scanCache.set(username, repo.name, analysis);
+                        }
                     }
 
                     // Pass prefetched repoInfo so ensureBranch skips a redundant API call
                     const { defaultBranch } = await ensureBranch(token, username, repo.name, branchName, repoInfo);
                     log(`  Branch ${branchName} ready (base: ${defaultBranch}).`);
 
-                    if (doScore) {
+                    if (doScore && analysis) {
                         send?.({ type: 'progress', pct: repoPct(60), msg: `Pushing SCORE.md to ${repo.name}…` });
                         const scoreMd = generateScoreReport(repo.name, analysis);
                         const sha     = await getFileSha(token, username, repo.name, 'SCORE.md', branchName);
@@ -293,13 +298,14 @@ export default async (req, res) => {
                         meta.score  = analysis.codeQuality?.overall;
                         repoLog.push(`✓ SCORE.md pushed (${meta.grade ?? '?'} ${meta.score ?? '—'}/100).`);
                         log(`  ✓ SCORE.md pushed.`);
+                    }
 
-                        // Add daily workflow if it doesn't exist on the default branch yet
+                    if (doWorkflow) {
                         const workflowPath = '.github/workflows/pretty-readme-score.yml';
                         const wfExists     = await getFileSha(token, username, repo.name, workflowPath, defaultBranch);
                         if (!wfExists) {
-                            const serviceUrl   = process.env.BASE_URL ?? 'http://localhost:8080';
-                            const workflowYml  = [
+                            const serviceUrl  = process.env.BASE_URL ?? 'http://localhost:8080';
+                            const workflowYml = [
                                 'name: Update Code Quality Score',
                                 'on:',
                                 '  schedule:',
@@ -321,11 +327,14 @@ export default async (req, res) => {
                             meta.workflowPushed = true;
                             repoLog.push(`✓ Daily score workflow added.`);
                             log(`  ✓ Workflow pushed to PR branch.`);
+                        } else {
+                            repoLog.push(`— Workflow already present, skipped.`);
+                            log(`  — Workflow already present.`);
                         }
                     }
 
-                    // Patch code quality badge in existing README.md (even when doReadme is false)
-                    if (doScore && !doReadme) {
+                    // Patch code quality badge in existing README.md (when scoring but not regenerating)
+                    if (doScore && !doReadme && analysis) {
                         const BADGE_RE = /\[!\[Code Quality\]\(https:\/\/img\.shields\.io[^)]+\)\]\(SCORE\.md\)/;
                         const badge    = scoreBadgeMd(analysis);
                         const readme   = await getFile(token, username, repo.name, 'README.md', branchName);
@@ -340,7 +349,7 @@ export default async (req, res) => {
                         }
                     }
 
-                    if (doReadme) {
+                    if (doReadme && analysis) {
                         const readmeMd = generateReadmeFromOutline(repo.name, analysis);
                         if (readmeMd) {
                             const sha = await getFileSha(token, username, repo.name, 'README.md', branchName);
@@ -354,7 +363,7 @@ export default async (req, res) => {
                         }
                     }
 
-                    if (meta.scorePushed || meta.readmePushed) {
+                    if (meta.scorePushed || meta.readmePushed || meta.workflowPushed) {
                         send?.({ type: 'progress', pct: repoPct(85), msg: `Opening PR for ${repo.name}…` });
                         const prTitle = `pretty-readme: auto-update ${branchName.split('/')[1]}`;
                         const prBody  = buildPRBody(meta);
