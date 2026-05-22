@@ -57,15 +57,22 @@ export const ensureBranch = async (token, owner, repo, branchName, prefetched) =
     return { defaultBranch, sha };
 };
 
-/** Returns the blob SHA of a file on a given branch, or null if it doesn't exist. */
-export const getFileSha = async (token, owner, repo, path, branch) => {
+/** Returns { sha, content } for a file on a given branch, or null if it doesn't exist. */
+export const getFile = async (token, owner, repo, path, branch) => {
     const res = await fetch(
         `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`,
         { headers: ghHeaders(token) },
     );
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
-    return (await res.json()).sha;
+    const data = await res.json();
+    return { sha: data.sha, content: Buffer.from(data.content, 'base64').toString('utf8') };
+};
+
+/** Returns the blob SHA of a file on a given branch, or null if it doesn't exist. */
+export const getFileSha = async (token, owner, repo, path, branch) => {
+    const file = await getFile(token, owner, repo, path, branch);
+    return file?.sha ?? null;
 };
 
 /** Writes a file to a specific branch via the Contents API. */

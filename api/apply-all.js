@@ -2,10 +2,10 @@ import { getAllRepos }                                            from '../src/g
 import { getRepoSnapshot }                                       from '../src/github/repo-contents.js';
 import { analyzeRepo }                                           from '../src/ai/repo-analyzer.js';
 import { scanCache }                                             from '../src/scan-cache.js';
-import { generateScoreReport, generateReadmeFromOutline }        from '../src/markdown/score-report.js';
+import { generateScoreReport, generateReadmeFromOutline, scoreBadgeMd } from '../src/markdown/score-report.js';
 import { readConfig }                                            from '../src/github/config.js';
 import { readState, writeState }                                 from '../src/github/run-state.js';
-import { getRepoInfo, ensureBranch, getFileSha, putFile, openOrUpdatePR } from '../src/github/pr-writer.js';
+import { getRepoInfo, ensureBranch, getFile, getFileSha, putFile, openOrUpdatePR } from '../src/github/pr-writer.js';
 import { GoogleGenerativeAI }                                    from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
@@ -321,6 +321,22 @@ export default async (req, res) => {
                             meta.workflowPushed = true;
                             repoLog.push(`✓ Daily score workflow added.`);
                             log(`  ✓ Workflow pushed to PR branch.`);
+                        }
+                    }
+
+                    // Patch code quality badge in existing README.md (even when doReadme is false)
+                    if (doScore && !doReadme) {
+                        const BADGE_RE = /\[!\[Code Quality\]\(https:\/\/img\.shields\.io[^)]+\)\]\(SCORE\.md\)/;
+                        const badge    = scoreBadgeMd(analysis);
+                        const readme   = await getFile(token, username, repo.name, 'README.md', branchName);
+                        if (readme && BADGE_RE.test(readme.content)) {
+                            const updated = readme.content.replace(BADGE_RE, badge);
+                            if (updated !== readme.content) {
+                                await putFile(token, username, repo.name, 'README.md', updated, readme.sha, 'chore: update code quality badge', branchName);
+                                meta.readmePushed = true;
+                                repoLog.push('✓ README.md badge updated.');
+                                log('  ✓ Badge updated in README.md.');
+                            }
                         }
                     }
 
