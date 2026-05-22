@@ -1,4 +1,4 @@
-decode = (value) => {
+const decode = (value) => {
     try {
         return atob(value);
     } catch (error) {

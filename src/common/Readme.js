@@ -19,7 +19,7 @@ class Readme {
         return `
             ${badges}
             
-            # ${title}
+            # ${this.title}
 
             ${hero}
         `

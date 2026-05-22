@@ -15,7 +15,7 @@ const poll = async (url, retries = 30, interval = 500) => {
         try {
             const res = await fetch(url);
             if (res.ok) return;
-        } catch {}
+        } catch {} // eslint-disable-line no-empty
         await wait(interval);
     }
     throw new Error(`Server at ${url} did not become ready`);

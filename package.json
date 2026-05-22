@@ -15,10 +15,21 @@
     "http-errors": "^2.0.0",
     "simple-icons": "^16.19.0"
   },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^3.1.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "vitest": "^3.1.0"
+  },
   "type": "module",
   "scripts": {
     "start": "node --env-file=.env express.js",
-    "test": "node --test src/tests/smoke.test.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "preview": "node scripts/preview.mjs",
     "docs": "node --env-file=.env scripts/update-readme.mjs"
   }

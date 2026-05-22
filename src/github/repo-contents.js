@@ -199,6 +199,7 @@ export const getRepoSnapshot = async (token, owner, repoName) => {
         hasDocsDir:      hasDir('docs', 'doc', 'documentation'),
         hasMakefile:     files.some(f => /^Makefile$/i.test(f.split('/').pop())),
         hasPreCommit:    files.includes('.pre-commit-config.yaml'),
+        hasTsconfig:     presentKeyFiles.some(f => /^(ts|js)config\.json$/i.test(f)),
         totalFiles:      files.length,
         treeWasTruncated: !!truncated,
     };

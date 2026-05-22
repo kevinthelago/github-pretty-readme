@@ -51,7 +51,7 @@ const putFile = async (path, content, sha, message) => {
 
 const pushAsset = async (filePath, content) => {
     let sha;
-    try { sha = (await getFile(filePath)).sha; } catch {}
+    try { sha = (await getFile(filePath)).sha; } catch {} // eslint-disable-line no-empty
     await putFile(filePath, content, sha, `chore: update ${filePath}`);
     console.log(`  ✓  ${filePath}`);
 };

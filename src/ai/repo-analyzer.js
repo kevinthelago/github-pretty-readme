@@ -80,8 +80,7 @@ const scoreTooling = (signals) => {
     else                         missing.push('No code formatter found');
 
     if (signals.hasTypeScript) { score += 25; evidence.push('TypeScript in use'); }
-    else if (Object.keys(signals).includes('tsconfig.json')) {
-                                 score += 25; evidence.push('TypeScript config found'); }
+    else if (signals.hasTsconfig) { score += 25; evidence.push('JS/TS config found (type checking enabled)'); }
     else                         missing.push('No static type checking');
 
     if (signals.hasMakefile)   { score += 10; evidence.push('Makefile present'); }
