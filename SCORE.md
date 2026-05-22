@@ -1,46 +1,44 @@
 # Code Quality Report — `github-pretty-readme`
 _Generated 2026-05-22 · JavaScript_
 
-## Overall Grade: 🟢 A (82/100)
+## Overall Grade: 🟢 A+ (93/100)
 
-`████████░░`
+`█████████░`
 
 | Dimension | Score | Grade |
 |---|:---:|:---:|
-| Testing | 80/100 | A |
-| Documentation | 75/100 | B |
-| Tooling | 55/100 | C |
+| Testing | 90/100 | A+ |
+| Documentation | 85/100 | A |
+| Tooling | 90/100 | A+ |
 | CI/CD | 100/100 | A+ |
 | Security | 100/100 | A+ |
-| Structure | 85/100 | A |
+| Structure | 100/100 | A+ |
 
 ---
 
-## Testing — 🟢 A (80/100)
+## Testing — 🟢 A+ (90/100)
 
-`████████░░`
+`█████████░`
 
-**Found:** Test framework configured · Test directory present · 2 test file(s) found · Low test ratio (0.03) · CI runs workflows
+**Found:** Test framework configured · Test directory present · 2 test file(s) found · Low test ratio (0.03) · Coverage reporting configured · CI runs workflows
 
-**Missing:** Increase test coverage · No coverage reporting
-
----
-
-## Documentation — 🔵 B (75/100)
-
-`████████░░`
-
-**Found:** README present · README has substantial content · Installation section found · Usage/examples section found · Badges present · API reference in README · CONTRIBUTING.md present · CHANGELOG present
+**Missing:** Increase test coverage
 
 ---
 
-## Tooling — 🟡 C (55/100)
+## Documentation — 🟢 A (85/100)
 
-`██████░░░░`
+`█████████░`
 
-**Found:** Linter configured · Formatter configured
+**Found:** README present · README has substantial content · Installation section found · Usage/examples section found · Badges present · API reference in README · CONTRIBUTING.md present · CHANGELOG present · Docs directory present
 
-**Missing:** No static type checking · No pre-commit hooks
+---
+
+## Tooling — 🟢 A+ (90/100)
+
+`█████████░`
+
+**Found:** Linter configured · Formatter configured · JS/TS config found (type checking enabled) · Pre-commit hooks configured
 
 ---
 
@@ -60,20 +58,17 @@ _Generated 2026-05-22 · JavaScript_
 
 ---
 
-## Structure — 🟢 A (85/100)
+## Structure — 🟢 A+ (100/100)
 
-`█████████░`
+`██████████`
 
-**Found:** Source organized under src/ or lib/ · .gitignore present · License file present · Docker configuration present
+**Found:** Source organized under src/ or lib/ · .gitignore present · License file present · Docs directory present · Docker configuration present
 
 ---
 
 ## Suggestions
 
 1. Increase test coverage
-2. No coverage reporting
-3. No static type checking
-4. No pre-commit hooks
 
 ## Tech Stack Detected
 
