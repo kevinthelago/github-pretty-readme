@@ -347,7 +347,13 @@ http://localhost:8080/monkeytype
 
 ## Automated Updates (Cron Job)
 
-`github-pretty-readme` can run on a daily schedule to keep your profile and repositories up to date. The workflow below calls the hosted service, reads your `.pretty-readme.json` allowlist, scores every listed repo, regenerates the account summary, and opens a pull request per repo for review — applying topics and descriptions immediately.
+`github-pretty-readme` can run on a daily schedule to keep your profile and repositories up to date. The workflow below calls the hosted service, reads your `.pretty-readme.json` allowlist, and for each repo:
+
+- Fetches the current HEAD commit SHA and compares it against `.pretty-readme-state.json` (stored in your profile repo).
+- **Skips the repo entirely** if no commits have landed since the last run.
+- **Runs and updates the open PR** if new commits are detected, or creates a new PR if this is the first run.
+
+This means the daily cron is cheap — only repos that actually changed trigger AI calls and GitHub writes.
 
 ### 1 — Create your allowlist
 
@@ -404,6 +410,9 @@ jobs:
 | Account summary, developer rating, tech charts | Pushed directly to your profile README |
 | SCORE.md + README.md per repo | Opened as a pull request on a `pretty-readme/YYYY-MM-DD` branch |
 | Topics + descriptions | Applied immediately via GitHub API (reversible from the repo settings page) |
+| Run state | Written to `.pretty-readme-state.json` in your profile repo after each run |
+
+Repos with no new commits since the last run are skipped automatically — no AI calls, no GitHub writes.
 
 ## Deployment
 
