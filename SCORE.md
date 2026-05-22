@@ -46,7 +46,7 @@ _Generated 2026-05-22 · JavaScript_
 
 `██████████`
 
-**Found:** 4 workflow file(s) found · Tests run in CI · Lint/format check in CI · Deployment pipeline present · Coverage reporting in CI
+**Found:** 2 workflow file(s) found · Tests run in CI · Lint/format check in CI · Deployment pipeline present · Coverage reporting in CI
 
 ---
 
