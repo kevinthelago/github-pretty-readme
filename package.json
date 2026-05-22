@@ -10,7 +10,7 @@
     "@google/generative-ai": "^0.23.0",
     "axios": "^1.16.1",
     "cookie-session": "^2.1.1",
-    "express": "^4.21.2",
+    "express": "^5.2.1",
     "express-session": "^1.19.0",
     "http-errors": "^2.0.0",
     "simple-icons": "^16.19.0"
