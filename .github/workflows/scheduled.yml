@@ -1,21 +1,21 @@
-name: Daily repo improvement
+name: Scheduled tasks
 
 on:
   schedule:
-    - cron: '0 5 * * *'   # 5am UTC daily
+    - cron: '0 5 * * *'      # 05:00 UTC daily  — improve topics/descriptions + profile update
+    - cron: '0 * * * 1-5'    # every hour Mon-Fri — profile summary refresh
   workflow_dispatch:
     inputs:
       dry_run:
         description: 'Preview changes without applying them'
         type: boolean
         default: false
-      passes:
-        description: 'Number of improvement + re-grade cycles'
-        type: number
-        default: 1
 
 jobs:
+  # ── Daily: improve repo metadata + update profile ────────────────────────────
   improve:
+    name: Improve repos + update profile
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 5 * * *'
     runs-on: ubuntu-latest
 
     steps:
@@ -30,8 +30,8 @@ jobs:
       - name: Start server
         env:
           GOOGLE_AI_STUDIO_KEY: ${{ secrets.GOOGLE_AI_STUDIO_KEY }}
-          AI_PROMPT: ${{ secrets.AI_PROMPT }}
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          AI_PROMPT:            ${{ secrets.AI_PROMPT }}
+          GITHUB_TOKEN:         ${{ secrets.GH_PAT }}
           port: 8080
         run: node express.js > /tmp/server.log 2>&1 &
 
@@ -44,12 +44,7 @@ jobs:
           curl -sf "http://localhost:8080/developer-rating" > /dev/null || (echo "=== Server log ===" && cat /tmp/server.log && exit 1)
 
       - name: Grade (before)
-        id: grade_before
         run: |
-          RATING=$(curl -s "http://localhost:8080/developer-rating-insights" | head -5)
-          echo "rating_before<<EOF" >> $GITHUB_OUTPUT
-          echo "$RATING" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
           echo "=== Rating before improvement ==="
           curl -s "http://localhost:8080/developer-rating-insights" | head -20
 
@@ -81,3 +76,44 @@ jobs:
           echo ""
           echo "=== Updating profile README ==="
           node scripts/update-profile.mjs kevinthelago
+
+  # ── Hourly (Mon-Fri): refresh profile summary ─────────────────────────────────
+  profile:
+    name: Refresh profile summary
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 * * * 1-5'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.x'
+
+      - run: npm install
+
+      - name: Start server
+        env:
+          GOOGLE_AI_STUDIO_KEY: ${{ secrets.GOOGLE_AI_STUDIO_KEY }}
+          AI_PROMPT:            ${{ secrets.AI_PROMPT }}
+          GITHUB_TOKEN:         ${{ secrets.GH_PAT }}
+          port: 8080
+        run: node express.js > /tmp/server.log 2>&1 &
+
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 20); do
+            curl -sf "http://localhost:8080/account-summary?username=kevinthelago" > /dev/null && echo "Server ready" && break
+            sleep 2
+          done
+          echo "=== Server log ==="
+          cat /tmp/server.log || true
+          curl -sf "http://localhost:8080/account-summary?username=kevinthelago" > /dev/null || (echo "Server never started" && exit 1)
+
+      - name: Update profile README
+        env:
+          PROFILE_REPO_TOKEN:  ${{ secrets.PROFILE_REPO_TOKEN }}
+          MONKEYTYPE_API_KEY:  ${{ secrets.MONKEYTYPE_API_KEY }}
+          MONKEYTYPE_USERNAME: ${{ secrets.MONKEYTYPE_USERNAME }}
+          port: 8080
+        run: node scripts/update-profile.mjs kevinthelago
