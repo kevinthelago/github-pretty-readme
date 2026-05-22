@@ -24,9 +24,12 @@ const putFile = async (token, repo, path, content, sha, message) => {
     if (!res.ok) {
         const text = await res.text();
         if (res.status === 403) {
+            const isWorkflow = path.startsWith('.github/workflows/');
             throw new Error(
                 `PUT ${path} → 403: GitHub denied write access. ` +
-                `Check that your GitHub App has Contents: Read & write permission and is installed on this repo.`
+                (isWorkflow
+                    ? `Workflow files require the Workflows permission on your GitHub App (separate from Contents).`
+                    : `Check that your GitHub App has Contents: Read & write permission and is installed on this repo.`)
             );
         }
         throw new Error(`PUT ${path} → ${res.status}: ${text}`);

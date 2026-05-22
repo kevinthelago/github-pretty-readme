@@ -88,7 +88,12 @@ export const putFile = async (token, owner, repo, path, content, sha, message, b
         headers: ghHeaders(token),
         body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`PUT ${path} → ${res.status}: ${await res.text()}`);
+    if (!res.ok) {
+        const text = await res.text();
+        if (res.status === 403 && path.startsWith('.github/workflows/'))
+            throw new Error(`PUT ${path} → 403: Workflow files require the Workflows permission on your GitHub App (separate from Contents).`);
+        throw new Error(`PUT ${path} → ${res.status}: ${text}`);
+    }
 };
 
 /**
