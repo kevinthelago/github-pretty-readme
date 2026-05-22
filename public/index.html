@@ -451,6 +451,13 @@ nav {
 .apply-msg.success { color: #3fb950; }
 .apply-msg.error   { color: var(--danger); }
 
+/* Progress bar */
+.progress-wrap { display:none; margin: 14px auto 0; max-width: 600px; text-align:left; }
+.progress-track { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; transition: width .4s ease; }
+.progress-status { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3); margin-top: 7px; min-height: 1.4em; }
+.apply-log .skip { color: var(--text-3); }
+
 /* ── Settings ──────────────────────────────────────────────────────────────── */
 #settings-section { padding: 0 0 64px; }
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
@@ -721,6 +728,10 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px;
             </label>
         </div>
         <p class="apply-msg" id="apply-msg"></p>
+        <div class="progress-wrap" id="progress-wrap">
+            <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+            <div class="progress-status" id="progress-status"></div>
+        </div>
         <div class="apply-log" id="apply-log"></div>
         <div id="schedule-note" style="display:none;margin-top:16px;padding:14px 18px;background:var(--bg-elev);border:1px solid var(--border);border-radius:8px;font-size:13px;line-height:1.6">
             <strong>Activate daily auto-updates</strong><br>
@@ -1041,7 +1052,70 @@ if (urlParams.get('error')) {
 // ── Apply logic ───────────────────────────────────────────────────────────────
 const applyLog      = document.getElementById('apply-log');
 const applyMsg      = document.getElementById('apply-msg');
+const progressWrap  = document.getElementById('progress-wrap');
+const progressFill  = document.getElementById('progress-fill');
+const progressStatus = document.getElementById('progress-status');
 let   applyRunning  = false;
+
+const setProgress = (pct, msg) => {
+    progressFill.style.width = pct + '%';
+    if (msg) progressStatus.textContent = msg;
+};
+
+const appendStep = (msg, kind) => {
+    const cls = kind === 'skip' ? 'skip'
+        : msg.startsWith('Done') ? 'done'
+        : msg.includes('✗') ? 'err' : 'ok';
+    applyLog.innerHTML += `<div class="${cls}">${msg}</div>`;
+    applyLog.scrollTop = applyLog.scrollHeight;
+};
+
+// Builds URLSearchParams for /apply-all; returns null and shows error if selection is empty.
+const buildRepoParams = () => {
+    const params = new URLSearchParams();
+    if (selectedFeats.has('score'))        params.set('score',        'true');
+    if (selectedFeats.has('readme'))       params.set('readme',       'true');
+    if (selectedFeats.has('topics'))       params.set('topics',       'true');
+    if (selectedFeats.has('descriptions')) params.set('descriptions', 'true');
+    if (repoScopeMode === 'all') {
+        params.set('repos', '*');
+    } else {
+        if (!selectedRepos.size) {
+            progressWrap.style.display = 'none';
+            applyMsg.textContent   = '✗ No repositories selected.';
+            applyMsg.className     = 'apply-msg error';
+            applyMsg.style.display = 'block';
+            applyRunning = false;
+            document.querySelectorAll('#apply-btn-1,#apply-btn-2').forEach(b => { b.disabled = false; });
+            return null;
+        }
+        params.set('repos', [...selectedRepos].join(','));
+    }
+    return params;
+};
+
+// Wraps EventSource in a Promise; maps pct to [minPct, maxPct] range.
+const runSSE = (url, minPct = 0, maxPct = 100) => new Promise((resolve, reject) => {
+    const es = new EventSource(url);
+    es.onmessage = (e) => {
+        let data;
+        try { data = JSON.parse(e.data); } catch { return; }
+        if (data.type === 'progress') {
+            const mapped = minPct + (data.pct / 100) * (maxPct - minPct);
+            setProgress(Math.round(mapped), data.msg);
+        }
+        if (data.type === 'step') {
+            appendStep(data.msg, data.kind);
+        }
+        if (data.type === 'done') {
+            es.close(); resolve(data);
+        }
+        if (data.type === 'error') {
+            es.close(); reject(new Error(data.msg));
+        }
+    };
+    es.onerror = () => { es.close(); reject(new Error('Connection lost')); };
+});
 const REPO_FEAT_IDS = ['score', 'readme', 'topics', 'descriptions'];
 let   selectedFeats  = new Set(['profile']);
 let   repoScopeMode  = 'all';   // 'all' | 'select'
@@ -1052,20 +1126,15 @@ const runApply = async (allBtns) => {
     if (applyRunning) return;
     applyRunning = true;
     allBtns.forEach(b => { b.disabled = true; });
-    applyMsg.className     = 'apply-msg';
-    applyLog.innerHTML     = '';
-    applyLog.style.display = 'block';
+    applyMsg.className      = 'apply-msg';
+    applyLog.innerHTML      = '';
+    applyLog.style.display  = 'block';
+    progressWrap.style.display = 'block';
+    setProgress(0, 'Starting…');
     document.getElementById('apply-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
     const repo        = window._selectedRepo;
     const hasRepoFeat = REPO_FEAT_IDS.some(id => selectedFeats.has(id));
-
-    const showSteps = (steps) => {
-        applyLog.innerHTML = (steps ?? []).map(s => {
-            const cls = s.startsWith('Done') ? 'done' : s.startsWith('  ✗') ? 'err' : 'ok';
-            return `<div class="${cls}">${s}</div>`;
-        }).join('');
-    };
 
     const showScheduleNote = () => {
         const scheduleNote = document.getElementById('schedule-note');
@@ -1074,95 +1143,74 @@ const runApply = async (allBtns) => {
         scheduleNote.style.display = 'block';
     };
 
-    if (repo && !hasRepoFeat) {
-        // Single-repo direct push from URL bar
-        const generateReadme = document.getElementById('readme-toggle').checked;
-        applyMsg.textContent   = `Applying to ${repo}…`;
+    const finish = (ok, msg) => {
+        setProgress(100, ok ? 'Done.' : 'Failed.');
+        applyMsg.textContent = ok ? `✓ ${msg}` : `✗ ${msg}`;
+        applyMsg.className   = ok ? 'apply-msg success' : 'apply-msg error';
         applyMsg.style.display = 'block';
-        try {
+    };
+
+    try {
+        if (repo && !hasRepoFeat) {
+            // Single-repo path — no SSE on repo-apply, keep fetch()
+            const generateReadme = document.getElementById('readme-toggle').checked;
+            applyMsg.textContent   = `Applying to ${repo}…`;
+            applyMsg.style.display = 'block';
+            setProgress(10, `Scoring ${repo}…`);
             const url  = `/repo-apply?repo=${encodeURIComponent(repo)}${generateReadme ? '&readme=true' : ''}`;
             const data = await fetch(url).then(r => r.json());
-            showSteps(data.steps);
+            (data.steps ?? []).forEach(s => {
+                const cls = s.startsWith('Done') ? 'done' : s.startsWith('  ✗') ? 'err' : 'ok';
+                applyLog.innerHTML += `<div class="${cls}">${s}</div>`;
+            });
             if (!data.ok) throw new Error(data.error ?? 'Unknown error');
-            applyMsg.textContent = `✓ Applied to github.com/${window._authUser}/${repo}`;
-            applyMsg.className   = 'apply-msg success';
-        } catch (err) {
-            applyMsg.textContent = '✗ ' + err.message;
-            applyMsg.className   = 'apply-msg error';
-            applyLog.innerHTML  += `<div class="err">✗ ${err.message}</div>`;
-        }
-    } else if (hasRepoFeat) {
-        // Bulk repo operations — scope is 'all' or specific selected repos
-        const params = new URLSearchParams();
-        if (selectedFeats.has('score'))        params.set('score',        'true');
-        if (selectedFeats.has('readme'))       params.set('readme',       'true');
-        if (selectedFeats.has('topics'))       params.set('topics',       'true');
-        if (selectedFeats.has('descriptions')) params.set('descriptions', 'true');
-        if (repoScopeMode === 'all') {
-            params.set('repos', '*');
-        } else {
-            if (!selectedRepos.size) {
-                applyMsg.textContent = '✗ No repositories selected.';
-                applyMsg.className   = 'apply-msg error';
-                applyRunning = false;
-                allBtns.forEach(b => { b.disabled = false; });
-                return;
-            }
-            params.set('repos', [...selectedRepos].join(','));
-        }
-        const alsoProfile  = selectedFeats.has('profile');
-        const scopeLabel   = repoScopeMode === 'all' ? 'all repositories' : `${selectedRepos.size} repositories`;
-        applyMsg.textContent   = `Running bulk operations across ${scopeLabel}…`;
-        applyMsg.style.display = 'block';
-        try {
-            const [allRes, profileRes] = await Promise.allSettled([
-                fetch(`/apply-all?${params}`).then(r => r.json()),
-                alsoProfile ? fetch('/apply-readme').then(r => r.json()) : Promise.resolve(null),
-            ]);
-            const allData     = allRes.value;
-            const profileData = profileRes.value;
-            const combined    = [...(allData?.steps ?? []), ...(profileData?.steps ?? [])];
-            showSteps(combined);
-            if (allData?.ok || profileData?.ok) {
-                applyMsg.textContent = `✓ Done — ${combined.filter(s => s.includes('✓')).length} operations applied.`;
-                applyMsg.className   = 'apply-msg success';
-                if (alsoProfile) {
-                    insightsLoaded = false;
-                    insightsBody.innerHTML = ''; insightsBody.style.display = 'none';
-                    insightsGate.style.display = 'block';
-                    showScheduleNote();
-                }
-            } else {
-                throw new Error(allData?.error ?? profileData?.error ?? 'Unknown error');
-            }
-        } catch (err) {
-            applyMsg.textContent = '✗ ' + err.message;
-            applyMsg.className   = 'apply-msg error';
-            applyLog.innerHTML  += `<div class="err">✗ ${err.message}</div>`;
-        }
-    } else if (selectedFeats.has('profile')) {
-        // Profile only
-        applyMsg.textContent   = 'Generating and pushing to GitHub…';
-        applyMsg.style.display = 'block';
-        try {
-            const data = await fetch('/apply-readme').then(r => r.json());
-            showSteps(data.steps);
-            if (!data.ok) throw new Error(data.error ?? 'Unknown error');
-            applyMsg.textContent = `✓ Profile updated — github.com/${window._authUser}`;
-            applyMsg.className   = 'apply-msg success';
+            finish(true, `Applied to github.com/${window._authUser}/${repo}`);
+
+        } else if (hasRepoFeat && selectedFeats.has('profile')) {
+            // Both profile + repos — sequential: 0→50% profile, 50→100% repos
+            const params = buildRepoParams();
+            if (!params) return;
+            const scopeLabel = repoScopeMode === 'all' ? 'all repositories' : `${selectedRepos.size} repositories`;
+            applyMsg.textContent   = `Updating profile and running across ${scopeLabel}…`;
+            applyMsg.style.display = 'block';
+            await runSSE('/apply-readme', 0, 50);
+            await runSSE(`/apply-all?${params}`, 50, 100);
+            finish(true, `Done — profile updated and operations applied across ${scopeLabel}.`);
             insightsLoaded = false;
             insightsBody.innerHTML = ''; insightsBody.style.display = 'none';
             insightsGate.style.display = 'block';
             showScheduleNote();
-        } catch (err) {
-            applyMsg.textContent = '✗ ' + err.message;
-            applyMsg.className   = 'apply-msg error';
-            applyLog.innerHTML  += `<div class="err">✗ ${err.message}</div>`;
+
+        } else if (hasRepoFeat) {
+            // Repos only
+            const params = buildRepoParams();
+            if (!params) return;
+            const scopeLabel = repoScopeMode === 'all' ? 'all repositories' : `${selectedRepos.size} repositories`;
+            applyMsg.textContent   = `Running bulk operations across ${scopeLabel}…`;
+            applyMsg.style.display = 'block';
+            await runSSE(`/apply-all?${params}`, 0, 100);
+            finish(true, `Done — operations applied across ${scopeLabel}.`);
+
+        } else if (selectedFeats.has('profile')) {
+            // Profile only
+            applyMsg.textContent   = 'Generating and pushing to GitHub…';
+            applyMsg.style.display = 'block';
+            await runSSE('/apply-readme', 0, 100);
+            finish(true, `Profile updated — github.com/${window._authUser}`);
+            insightsLoaded = false;
+            insightsBody.innerHTML = ''; insightsBody.style.display = 'none';
+            insightsGate.style.display = 'block';
+            showScheduleNote();
+
+        } else {
+            progressWrap.style.display = 'none';
+            applyMsg.textContent   = 'Select at least one feature above.';
+            applyMsg.className     = 'apply-msg';
+            applyMsg.style.display = 'block';
         }
-    } else {
-        applyMsg.textContent   = 'Select at least one feature above.';
-        applyMsg.className     = 'apply-msg';
-        applyMsg.style.display = 'block';
+    } catch (err) {
+        finish(false, err.message);
+        applyLog.innerHTML += `<div class="err">✗ ${err.message}</div>`;
     }
 
     applyRunning = false;

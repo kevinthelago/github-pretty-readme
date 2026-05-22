@@ -400,18 +400,22 @@ const renderInsights = (rating, insights, repos, recommendations = '') => {
 
 // ── Core profile generator ────────────────────────────────────────────────────
 
-export async function generateProfile(token, username, monkeyOptions = {}) {
+export async function generateProfile(token, username, monkeyOptions = {}, onProgress = null) {
     const steps = [];
+    const emit  = (pct, msg) => { onProgress?.({ pct, msg }); };
     const log   = (msg) => { steps.push(msg); console.log(`[apply-readme] ${msg}`); };
 
+    emit(5,  'Fetching repositories…');
     log('Fetching repositories…');
     const repos = await getAllRepos(token);
     if (!repos) throw new Error('Failed to fetch repositories — check token scope');
 
+    emit(12, 'Fetching workflow metrics…');
     log('Fetching workflow metrics…');
     const [wfResult] = await Promise.allSettled([fetchWorkflowMetrics(token, repos)]);
     const metrics    = wfResult.status === 'fulfilled' ? wfResult.value : null;
 
+    emit(22, 'Generating bio…');
     log('Generating bio…');
     const bioPrompt =
         `Write a 2-3 sentence developer bio for a GitHub profile README based on the following repositories. ` +
@@ -420,6 +424,7 @@ export async function generateProfile(token, username, monkeyOptions = {}) {
     const bioResult = await model.generateContent(bioPrompt);
     const bio       = bioResult.response.text().trim();
 
+    emit(38, 'Computing developer rating…');
     log('Computing developer rating…');
     const scanData  = scanCache.getAll(username);
     const hasScanData = Object.keys(scanData).length > 0;
@@ -428,6 +433,7 @@ export async function generateProfile(token, username, monkeyOptions = {}) {
     const insights  = computeInsights(repos, metrics, hasScanData ? scanData : null);
     const ratingSvg = renderDeveloperRating(rating);
 
+    emit(48, 'Building tech grid…');
     log('Building tech grid…');
     const series    = buildTechSeries(repos, ALL_CATEGORIES, 8, []);
     const chartable = series.filter(s => s.techs.length >= MIN_TECHS);
@@ -438,6 +444,7 @@ export async function generateProfile(token, username, monkeyOptions = {}) {
         techGridSvg = renderTechGrid(chartable, null, { columns: gridCols });
     }
 
+    emit(54, 'Building badges…');
     log('Building badges…');
     const langFreq = {};
     repos.forEach(r => { if (r.language) langFreq[r.language] = (langFreq[r.language] || 0) + 1; });
@@ -451,6 +458,7 @@ export async function generateProfile(token, username, monkeyOptions = {}) {
 
     let monkeytypeSvg = null;
     if (monkeyOptions.apiKey) {
+        emit(60, 'Fetching Monkeytype stats…');
         log('Fetching Monkeytype stats…');
         try {
             const mtRes = await fetch('https://api.monkeytype.com/users/personalBests?mode=time', {
@@ -472,9 +480,11 @@ export async function generateProfile(token, username, monkeyOptions = {}) {
         }
     }
 
+    emit(68, 'Generating recommendations…');
     log('Generating personalised recommendations…');
     const recommendations = await generateRecommendations(repos, rating, insights);
 
+    emit(78, 'Rendering insights…');
     log('Rendering developer insights…');
     const insightsMd = renderInsights(rating, insights, repos, recommendations);
 
@@ -505,19 +515,35 @@ export default async (req, res) => {
     if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
 
     const dryRun = req.query.dry_run === 'true';
+    const isSSE  = req.headers.accept?.includes('text/event-stream');
+
+    if (isSSE) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+    }
+    const send = isSSE ? (data) => res.write(`data: ${JSON.stringify(data)}\n\n`) : null;
 
     try {
         const monkeyOptions = {
-            apiKey:   req.session.monkeytype_key ?? process.env.MONKEYTYPE_API_KEY ?? null,
-            username: req.session.monkeytype_username ?? process.env.MONKEYTYPE_USERNAME ?? null,
+            apiKey:   req.session?.monkeytype_key ?? process.env.MONKEYTYPE_API_KEY ?? null,
+            username: req.session?.monkeytype_username ?? process.env.MONKEYTYPE_USERNAME ?? null,
         };
+
+        const onProgress = send ? ({ pct, msg }) => send({ type: 'progress', pct, msg }) : null;
 
         // Reuse cached preview if available so we don't regenerate on every apply
         const cachedProfile = previewCache.get(username);
-        const profile       = cachedProfile ?? await generateProfile(token, username, monkeyOptions);
+        if (cachedProfile) send?.({ type: 'progress', pct: 80, msg: 'Using cached profile data…' });
+        const profile = cachedProfile ?? await generateProfile(token, username, monkeyOptions, onProgress);
         if (!cachedProfile) previewCache.set(username, profile);
 
-        if (dryRun) return res.json({ ok: true, dry_run: true, steps: profile.steps, bio: profile.bio });
+        if (dryRun) {
+            const result = { ok: true, dry_run: true, steps: profile.steps, bio: profile.bio };
+            if (send) { send({ type: 'done', ...result }); res.end(); } else { res.json(result); }
+            return;
+        }
 
         const repo       = `${username}/${username}`;
         const README_PATH = 'README.md';
@@ -538,11 +564,13 @@ export default async (req, res) => {
         readme = ensureMarkers(readme, SECTIONS);
         readme = inject(readme, '<!-- summary-start -->',   '<!-- summary-end -->',   '\n' + profile.bio + '\n');
 
+        send?.({ type: 'progress', pct: 84, msg: 'Pushing developer rating…' });
         await pushAsset(token, repo, 'assets/developer-rating.svg', profile.ratingSvg);
         const ratingLink = `\n<a href="https://github.com/${repo}/blob/main/DEVELOPER_INSIGHTS.md"><img src="./assets/developer-rating.svg" width="100%" alt="Developer Rating" /></a>\n`;
         readme = inject(readme, '<!-- rating-start -->', '<!-- rating-end -->', ratingLink);
 
         if (profile.monkeytypeSvg) {
+            send?.({ type: 'progress', pct: 87, msg: 'Pushing Monkeytype chart…' });
             await pushAsset(token, repo, 'assets/monkeytype.svg', profile.monkeytypeSvg);
             const img = '<img src="./assets/monkeytype.svg" width="100%" alt="Typing Speed" />';
             const linked = monkeyOptions.username
@@ -552,6 +580,7 @@ export default async (req, res) => {
         }
 
         if (profile.techGridSvg) {
+            send?.({ type: 'progress', pct: 90, msg: 'Pushing tech grid…' });
             await pushAsset(token, repo, 'assets/tech-grid.svg', profile.techGridSvg);
             const totalW = profile.gridCols * CELL_W;
             const totalH = profile.gridRows * Math.round(CELL_W * 1.05);
@@ -563,7 +592,9 @@ export default async (req, res) => {
 
         readme = inject(readme, '<!-- tech-start -->', '<!-- tech-end -->', '\n' + profile.badges + '\n');
 
+        send?.({ type: 'progress', pct: 94, msg: 'Updating README…' });
         await putFile(token, repo, README_PATH, readme, readmeFile.sha, 'chore: update profile summary and charts');
+        send?.({ type: 'progress', pct: 97, msg: 'Pushing insights…' });
         await pushAsset(token, repo, 'DEVELOPER_INSIGHTS.md', profile.insightsMd);
 
         const serviceUrl  = process.env.BASE_URL ?? 'http://localhost:8080';
@@ -584,9 +615,12 @@ jobs:
         await pushAsset(token, repo, '.github/workflows/update-profile.yml', workflowYml);
         profile.steps.push('Pushed .github/workflows/update-profile.yml.');
         profile.steps.push('Done. Add a GH_PAT secret to your profile repo to activate the daily schedule.');
-        res.json({ ok: true, steps: profile.steps });
+        send?.({ type: 'progress', pct: 100, msg: 'Done.' });
+        const result = { ok: true, steps: profile.steps };
+        if (send) { send({ type: 'done', ...result }); res.end(); } else { res.json(result); }
     } catch (err) {
         console.error('[apply-readme]', err.message);
-        res.status(500).json({ error: err.message });
+        if (send) { send({ type: 'error', msg: err.message }); res.end(); }
+        else res.status(500).json({ error: err.message });
     }
 };

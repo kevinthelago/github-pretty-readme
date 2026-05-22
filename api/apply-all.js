@@ -134,8 +134,21 @@ export default async (req, res) => {
     const doTopics       = req.query.topics       === 'true';
     const doDescriptions = req.query.descriptions === 'true';
 
+    const isSSE = req.headers.accept?.includes('text/event-stream');
+    if (isSSE) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+    }
+    const send = isSSE ? (data) => res.write(`data: ${JSON.stringify(data)}\n\n`) : null;
+
     const steps = [];
-    const log   = (msg) => { steps.push(msg); console.log(`[apply-all] ${msg}`); };
+    const log   = (msg, kind = 'info') => {
+        steps.push(msg);
+        console.log(`[apply-all] ${msg}`);
+        send?.({ type: 'step', msg, kind });
+    };
 
     try {
         // ── Load run state (best-effort — don't abort if unavailable) ──────────
@@ -178,12 +191,17 @@ export default async (req, res) => {
         }
 
         log(`Processing ${targets.length} repo(s).`);
+        send?.({ type: 'progress', pct: 2, msg: `Found ${targets.length} repo${targets.length !== 1 ? 's' : ''} to check…` });
 
         const branchName  = todayBranch();
         const results     = [];
         let   stateChanged = false;
+        const total = targets.length;
 
-        for (const repo of targets) {
+        for (let idx = 0; idx < targets.length; idx++) {
+            const repo = targets[idx];
+            const repoPct = (pct) => Math.round(2 + (idx / total + pct / 100 / total) * 95);
+            send?.({ type: 'progress', pct: repoPct(0), msg: `Checking ${repo.name}…` });
             log(`\n── ${repo.name} ──`);
             const repoLog = [];
 
@@ -202,8 +220,9 @@ export default async (req, res) => {
             // ── Skip check ────────────────────────────────────────────────────
             const lastEntry = runState.repos?.[repo.name];
             if (lastEntry?.lastCommitSha && lastEntry.lastCommitSha === headSha) {
-                log(`  — Skipped (no commits since ${lastEntry.lastRunAt ?? 'last run'}).`);
+                log(`  — Skipped (no commits since ${lastEntry.lastRunAt ?? 'last run'}).`, 'skip');
                 repoLog.push(`— Skipped — no new commits since last run (${headSha.slice(0, 7)}).`);
+                send?.({ type: 'progress', pct: repoPct(100), msg: `${repo.name} — skipped (no changes)` });
                 results.push({ repo: repo.name, log: repoLog, skipped: true });
                 continue;
             }
@@ -252,6 +271,7 @@ export default async (req, res) => {
                 try {
                     let analysis = scanCache.get(username, repo.name);
                     if (!analysis) {
+                        send?.({ type: 'progress', pct: repoPct(30), msg: `Scanning ${repo.name}…` });
                         log(`  Scanning ${repo.name}…`);
                         const snapshot = await getRepoSnapshot(token, username, repo.name);
                         analysis       = await analyzeRepo(snapshot);
@@ -263,6 +283,7 @@ export default async (req, res) => {
                     log(`  Branch ${branchName} ready (base: ${defaultBranch}).`);
 
                     if (doScore) {
+                        send?.({ type: 'progress', pct: repoPct(60), msg: `Pushing SCORE.md to ${repo.name}…` });
                         const scoreMd = generateScoreReport(repo.name, analysis);
                         const sha     = await getFileSha(token, username, repo.name, 'SCORE.md', branchName);
                         await putFile(token, username, repo.name, 'SCORE.md', scoreMd, sha, 'chore: update code quality report', branchName);
@@ -288,6 +309,7 @@ export default async (req, res) => {
                     }
 
                     if (meta.scorePushed || meta.readmePushed) {
+                        send?.({ type: 'progress', pct: repoPct(85), msg: `Opening PR for ${repo.name}…` });
                         const prTitle = `pretty-readme: auto-update ${branchName.split('/')[1]}`;
                         const prBody  = buildPRBody(meta);
                         const pr      = await openOrUpdatePR(token, username, repo.name, branchName, defaultBranch, prTitle, prBody);
@@ -306,12 +328,14 @@ export default async (req, res) => {
                 lastRunAt:     new Date().toISOString(),
             };
             stateChanged = true;
+            send?.({ type: 'progress', pct: repoPct(100), msg: `${repo.name} — done` });
 
             results.push({ repo: repo.name, log: repoLog });
         }
 
         // ── Persist state ──────────────────────────────────────────────────────
         if (stateChanged) {
+            send?.({ type: 'progress', pct: 98, msg: 'Saving run state…' });
             try {
                 await writeState(token, username, runState, stateSha);
                 log('\nRun state saved.');
@@ -320,10 +344,13 @@ export default async (req, res) => {
             }
         }
 
+        send?.({ type: 'progress', pct: 100, msg: 'Done.' });
         log('Done.');
-        res.json({ ok: true, steps, results });
+        const result = { ok: true, steps, results };
+        if (send) { send({ type: 'done', ...result }); res.end(); } else { res.json(result); }
     } catch (err) {
         console.error('[apply-all]', err.message);
-        res.status(500).json({ error: err.message });
+        if (send) { send({ type: 'error', msg: err.message }); res.end(); }
+        else res.status(500).json({ error: err.message });
     }
 };
