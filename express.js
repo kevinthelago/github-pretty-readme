@@ -16,6 +16,7 @@ import applyAll               from './api/apply-all.js';
 import monkeytype             from './api/monkeytype.js';
 import applyReadme            from './api/apply-readme.js';
 import previewReadme          from './api/preview-readme.js';
+import { getConfig, putConfig }                                      from './api/config.js';
 import { authGithub, authCallback, authLogout, authMe, requireAuth } from './api/auth.js';
 import { monkeytypeConnect, monkeytypeDisconnect }                   from './api/monkeytype-connect.js';
 import express                from 'express';
@@ -39,6 +40,10 @@ app.use(cookieSession({
 }));
 
 app.use(express.static(join(__dirname, 'public')));
+
+// Allowlist config
+app.get('/config',  requireAuth, getConfig);
+app.put('/config',  requireAuth, putConfig);
 
 // Auth
 app.get('/auth/github',   authGithub);
@@ -72,4 +77,4 @@ app.get('/repo-apply',               requireAuth, repoApply);
 app.get('/apply-all',                requireAuth, applyAll);
 app.get('/monkeytype',               monkeytype);
 
-app.listen(process.env.PORT || process.env.port || 8080);
+app.listen(process.env.PORT || process.env.port || 8088);

@@ -345,6 +345,66 @@ Generates an SVG chart visualizing Monkeytype typing speed personal bests across
 http://localhost:8080/monkeytype
 ```
 
+## Automated Updates (Cron Job)
+
+`github-pretty-readme` can run on a daily schedule to keep your profile and repositories up to date. The workflow below calls the hosted service, reads your `.pretty-readme.json` allowlist, scores every listed repo, regenerates the account summary, and opens a pull request per repo for review — applying topics and descriptions immediately.
+
+### 1 — Create your allowlist
+
+Add `.pretty-readme.json` to your profile repository (`{username}/{username}`):
+
+```json
+{
+  "repos": [
+    "my-project",
+    "another-repo",
+    "cool-cli"
+  ]
+}
+```
+
+Only repos in this list will be touched. You can also manage this file through the app UI at `GET /config` / `PUT /config`.
+
+### 2 — Add the workflow
+
+Create `.github/workflows/pretty-readme.yml` in your profile repository:
+
+```yaml
+name: pretty-readme daily update
+
+on:
+  schedule:
+    - cron: "0 5 * * *"   # 05:00 UTC every day
+  workflow_dispatch:       # allow manual runs from the Actions tab
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger full update
+        run: |
+          curl -fsSL \
+            -H "Cookie: session=${{ secrets.PRETTY_README_SESSION }}" \
+            "${{ secrets.PRETTY_README_URL }}/apply-all?score=true&readme=true&topics=true&descriptions=true"
+```
+
+### 3 — Set repository secrets
+
+| Secret | Value |
+|:--|:--|
+| `PRETTY_README_URL` | Your deployed service URL, e.g. `https://github-pretty-readme-xxx-uc.a.run.app` |
+| `PRETTY_README_SESSION` | Your session cookie value — copy it from DevTools → Application → Cookies after signing in |
+
+> **Tip:** Session cookies expire after 7 days. Re-copy the cookie value after each re-login, or use the hosted app at [github-pretty-readme](https://github.com/kevinthelago/github-pretty-readme) to trigger runs manually.
+
+### What each run does
+
+| Step | How it lands |
+|:--|:--|
+| Account summary, developer rating, tech charts | Pushed directly to your profile README |
+| SCORE.md + README.md per repo | Opened as a pull request on a `pretty-readme/YYYY-MM-DD` branch |
+| Topics + descriptions | Applied immediately via GitHub API (reversible from the repo settings page) |
+
 ## Deployment
 
-The project is designed to be deployed with a GitHub Actions workflow that periodically generates and pushes updated SVG graphics to the user's GitHub profile repository on a cron schedule.
+The service is deployed to **Google Cloud Run**. Pushes to `main` trigger the production deploy via GitHub Actions.

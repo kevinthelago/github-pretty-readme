@@ -70,3 +70,13 @@ api/account-summary.js      ← endpoint handler, orchestrates the pipeline
 ## Deployment
 
 Deployed to **Google Cloud Run**. Pushes to `main` trigger the production deploy via GitHub Actions. The service runs as a container on Cloud Run; `SESSION_SECRET` and other env vars are set as Cloud Run secrets/environment variables.
+
+## dev.to Article
+
+`dev.to.md` in the repo root is the published dev.to article. Keep it in sync when any of the following change:
+
+- New endpoints or query parameters are added
+- The cron/automation flow changes (branch naming, PR behaviour, allowlist format)
+- Deployment instructions change (Cloud Run steps, env vars)
+- The session cookie workaround is replaced with a proper API token
+- Any self-hosting steps change (prerequisites, `.env` keys, OAuth callback URL)

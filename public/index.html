@@ -237,12 +237,8 @@ nav {
     border-radius: var(--radius); padding: 16px;
     transition: border-color .15s, background .15s; position: relative;
 }
-.feature-card.always-on {
-    border-color: color-mix(in oklch, var(--accent) 50%, transparent);
-    background: color-mix(in oklch, var(--accent) 5%, var(--bg-elev));
-}
-.feature-grid.interactive .feature-card:not(.always-on) { cursor: pointer; }
-.feature-grid.interactive .feature-card:not(.always-on):hover { border-color: color-mix(in oklch, var(--accent) 45%, var(--border)); }
+.feature-grid.interactive .feature-card { cursor: pointer; }
+.feature-grid.interactive .feature-card:hover { border-color: color-mix(in oklch, var(--accent) 45%, var(--border)); }
 .feature-grid.interactive .feature-card.selected {
     border-color: var(--accent);
     background: color-mix(in oklch, var(--accent) 8%, var(--bg-elev));
@@ -252,10 +248,19 @@ nav {
     display: flex; align-items: center; justify-content: center;
     margin-bottom: 10px; font-size: 11px; color: transparent; transition: all .15s;
 }
-.feature-card.always-on .feature-check { border-color: var(--accent); background: var(--accent); color: var(--bg); }
 .feature-grid.interactive .feature-card.selected .feature-check { border-color: var(--accent); background: var(--accent); color: var(--bg); }
 .feature-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
 .feature-desc { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+
+/* Repo scope selector */
+.repo-scope { display:none; flex-direction:column; align-items:center; gap:12px; width:100%; max-width:880px; margin-top:4px; }
+.scope-toggle { display:inline-flex; background:var(--bg-sunk); border:1px solid var(--border); border-radius:8px; padding:3px; gap:2px; }
+.scope-btn { padding:5px 16px; border-radius:6px; border:none; background:transparent; color:var(--text-2); font-size:13px; cursor:pointer; transition:all .15s; }
+.scope-btn.active { background:var(--bg-elev); color:var(--text); box-shadow:var(--shadow-sm); }
+.repo-chips { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:600px; }
+.repo-chip { padding:4px 11px; border-radius:6px; border:1px solid var(--border); background:var(--bg-elev); color:var(--text-2); font-family:var(--font-mono); font-size:12px; cursor:pointer; transition:all .15s; user-select:none; }
+.repo-chip:hover { border-color:var(--border-strong); color:var(--text); }
+.repo-chip.selected { border-color:var(--accent); background:var(--accent-soft); color:var(--accent-ink); }
 
 /* ── Section ───────────────────────────────────────────────────────────────── */
 .section { padding: 72px 0; }
@@ -539,8 +544,8 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px;
             </p>
 
             <div class="feature-grid" id="feature-grid">
-                <div class="feature-card always-on" data-id="profile">
-                    <div class="feature-check">✓</div>
+                <div class="feature-card" data-id="profile">
+                    <div class="feature-check"></div>
                     <div class="feature-title">Profile Summary</div>
                     <div class="feature-desc">Developer rating, tech grid, and AI insights for your profile README.</div>
                 </div>
@@ -563,6 +568,17 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px;
                     <div class="feature-check"></div>
                     <div class="feature-title">AI Descriptions</div>
                     <div class="feature-desc">Write concise descriptions for repos missing one.</div>
+                </div>
+            </div>
+
+            <!-- Repo scope row — visible when any repo feature is selected -->
+            <div class="repo-scope" id="repo-scope">
+                <div class="scope-toggle">
+                    <button class="scope-btn active" id="scope-all">All Repositories</button>
+                    <button class="scope-btn" id="scope-select">Select Repositories</button>
+                </div>
+                <div id="repo-picker" style="display:none">
+                    <div class="repo-chips" id="repo-chips"></div>
                 </div>
             </div>
 
@@ -1027,7 +1043,10 @@ const applyLog      = document.getElementById('apply-log');
 const applyMsg      = document.getElementById('apply-msg');
 let   applyRunning  = false;
 const REPO_FEAT_IDS = ['score', 'readme', 'topics', 'descriptions'];
-let   selectedFeats = new Set(['profile']);
+let   selectedFeats  = new Set(['profile']);
+let   repoScopeMode  = 'all';   // 'all' | 'select'
+let   selectedRepos  = new Set(); // used when repoScopeMode === 'select'
+let   repoListCache  = null;      // fetched once
 
 const runApply = async (allBtns) => {
     if (applyRunning) return;
@@ -1048,14 +1067,21 @@ const runApply = async (allBtns) => {
         }).join('');
     };
 
+    const showScheduleNote = () => {
+        const scheduleNote = document.getElementById('schedule-note');
+        const scheduleLink = document.getElementById('schedule-link');
+        if (window._authUser) scheduleLink.href = `https://github.com/${window._authUser}/${window._authUser}/settings/secrets/actions/new?secret_name=GH_PAT`;
+        scheduleNote.style.display = 'block';
+    };
+
     if (repo && !hasRepoFeat) {
+        // Single-repo direct push from URL bar
         const generateReadme = document.getElementById('readme-toggle').checked;
         applyMsg.textContent   = `Applying to ${repo}…`;
         applyMsg.style.display = 'block';
         try {
             const url  = `/repo-apply?repo=${encodeURIComponent(repo)}${generateReadme ? '&readme=true' : ''}`;
-            const res  = await fetch(url);
-            const data = await res.json();
+            const data = await fetch(url).then(r => r.json());
             showSteps(data.steps);
             if (!data.ok) throw new Error(data.error ?? 'Unknown error');
             applyMsg.textContent = `✓ Applied to github.com/${window._authUser}/${repo}`;
@@ -1066,13 +1092,27 @@ const runApply = async (allBtns) => {
             applyLog.innerHTML  += `<div class="err">✗ ${err.message}</div>`;
         }
     } else if (hasRepoFeat) {
+        // Bulk repo operations — scope is 'all' or specific selected repos
         const params = new URLSearchParams();
         if (selectedFeats.has('score'))        params.set('score',        'true');
         if (selectedFeats.has('readme'))       params.set('readme',       'true');
         if (selectedFeats.has('topics'))       params.set('topics',       'true');
         if (selectedFeats.has('descriptions')) params.set('descriptions', 'true');
-        const alsoProfile = selectedFeats.has('profile');
-        applyMsg.textContent   = 'Running bulk operations across all repositories…';
+        if (repoScopeMode === 'all') {
+            params.set('repos', '*');
+        } else {
+            if (!selectedRepos.size) {
+                applyMsg.textContent = '✗ No repositories selected.';
+                applyMsg.className   = 'apply-msg error';
+                applyRunning = false;
+                allBtns.forEach(b => { b.disabled = false; });
+                return;
+            }
+            params.set('repos', [...selectedRepos].join(','));
+        }
+        const alsoProfile  = selectedFeats.has('profile');
+        const scopeLabel   = repoScopeMode === 'all' ? 'all repositories' : `${selectedRepos.size} repositories`;
+        applyMsg.textContent   = `Running bulk operations across ${scopeLabel}…`;
         applyMsg.style.display = 'block';
         try {
             const [allRes, profileRes] = await Promise.allSettled([
@@ -1090,10 +1130,7 @@ const runApply = async (allBtns) => {
                     insightsLoaded = false;
                     insightsBody.innerHTML = ''; insightsBody.style.display = 'none';
                     insightsGate.style.display = 'block';
-                    const scheduleNote = document.getElementById('schedule-note');
-                    const scheduleLink = document.getElementById('schedule-link');
-                    if (window._authUser) scheduleLink.href = `https://github.com/${window._authUser}/${window._authUser}/settings/secrets/actions/new?secret_name=GH_PAT`;
-                    scheduleNote.style.display = 'block';
+                    showScheduleNote();
                 }
             } else {
                 throw new Error(allData?.error ?? profileData?.error ?? 'Unknown error');
@@ -1103,12 +1140,12 @@ const runApply = async (allBtns) => {
             applyMsg.className   = 'apply-msg error';
             applyLog.innerHTML  += `<div class="err">✗ ${err.message}</div>`;
         }
-    } else {
+    } else if (selectedFeats.has('profile')) {
+        // Profile only
         applyMsg.textContent   = 'Generating and pushing to GitHub…';
         applyMsg.style.display = 'block';
         try {
-            const res  = await fetch('/apply-readme');
-            const data = await res.json();
+            const data = await fetch('/apply-readme').then(r => r.json());
             showSteps(data.steps);
             if (!data.ok) throw new Error(data.error ?? 'Unknown error');
             applyMsg.textContent = `✓ Profile updated — github.com/${window._authUser}`;
@@ -1116,15 +1153,16 @@ const runApply = async (allBtns) => {
             insightsLoaded = false;
             insightsBody.innerHTML = ''; insightsBody.style.display = 'none';
             insightsGate.style.display = 'block';
-            const scheduleNote = document.getElementById('schedule-note');
-            const scheduleLink = document.getElementById('schedule-link');
-            if (window._authUser) scheduleLink.href = `https://github.com/${window._authUser}/${window._authUser}/settings/secrets/actions/new?secret_name=GH_PAT`;
-            scheduleNote.style.display = 'block';
+            showScheduleNote();
         } catch (err) {
             applyMsg.textContent = '✗ ' + err.message;
             applyMsg.className   = 'apply-msg error';
             applyLog.innerHTML  += `<div class="err">✗ ${err.message}</div>`;
         }
+    } else {
+        applyMsg.textContent   = 'Select at least one feature above.';
+        applyMsg.className     = 'apply-msg';
+        applyMsg.style.display = 'block';
     }
 
     applyRunning = false;
@@ -1174,22 +1212,90 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
     const featureGrid = document.getElementById('feature-grid');
     featureGrid.classList.add('interactive');
 
+    // Mark profile card as initially selected
+    featureGrid.querySelector('[data-id="profile"]').classList.add('selected');
+    featureGrid.querySelector('[data-id="profile"] .feature-check').textContent = '✓';
+
+    const repoScopeEl  = document.getElementById('repo-scope');
+    const scopeAllBtn  = document.getElementById('scope-all');
+    const scopeSelBtn  = document.getElementById('scope-select');
+    const repoPicker   = document.getElementById('repo-picker');
+    const repoChipsEl  = document.getElementById('repo-chips');
+
+    const buildRepoChips = async () => {
+        if (!repoListCache) {
+            repoListCache = await fetch('/repos').then(r => r.json()).catch(() => []);
+            repoListCache = repoListCache.filter(r => !r.isProfile);
+        }
+        repoChipsEl.innerHTML = repoListCache.map(r =>
+            `<div class="repo-chip${selectedRepos.has(r.name) ? ' selected' : ''}" data-name="${r.name}">${r.name}</div>`
+        ).join('');
+        repoChipsEl.querySelectorAll('.repo-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const name = chip.dataset.name;
+                if (selectedRepos.has(name)) { selectedRepos.delete(name); chip.classList.remove('selected'); }
+                else                         { selectedRepos.add(name);    chip.classList.add('selected'); }
+                syncApplyLabel();
+            });
+        });
+    };
+
+    scopeAllBtn.addEventListener('click', () => {
+        repoScopeMode = 'all';
+        scopeAllBtn.classList.add('active'); scopeSelBtn.classList.remove('active');
+        repoPicker.style.display = 'none';
+        syncApplyLabel();
+    });
+    scopeSelBtn.addEventListener('click', () => {
+        repoScopeMode = 'select';
+        scopeSelBtn.classList.add('active'); scopeAllBtn.classList.remove('active');
+        repoPicker.style.display = 'block';
+        buildRepoChips();
+        syncApplyLabel();
+    });
+
     const syncApplyLabel = () => {
         const hasRepo = REPO_FEAT_IDS.some(id => selectedFeats.has(id));
-        const label   = hasRepo
-            ? 'Apply to All Repositories'
-            : window._selectedRepo
-                ? `Apply to ${window._selectedRepo}`
-                : 'Apply to Profile';
+
+        // Show/hide repo scope row
+        repoScopeEl.style.display = hasRepo ? 'flex' : 'none';
+
+        let label;
+        if (!hasRepo && !selectedFeats.has('profile')) {
+            label = 'Select features above';
+            allApplyBtns.forEach(b => { b.disabled = true; });
+        } else {
+            allApplyBtns.forEach(b => { b.disabled = window._previewLoading ?? false; });
+            if (hasRepo && selectedFeats.has('profile')) {
+                const scopeStr = repoScopeMode === 'all'
+                    ? 'All Repos'
+                    : selectedRepos.size ? `${selectedRepos.size} Repo${selectedRepos.size !== 1 ? 's' : ''}` : 'Select Repos';
+                label = `Apply to Profile & ${scopeStr}`;
+            } else if (hasRepo) {
+                const scopeStr = repoScopeMode === 'all'
+                    ? 'All Repositories'
+                    : selectedRepos.size ? `${selectedRepos.size} Repositor${selectedRepos.size !== 1 ? 'ies' : 'y'}` : 'Select Repositories';
+                label = `Apply to ${scopeStr}`;
+            } else {
+                label = window._selectedRepo ? `Apply to ${window._selectedRepo}` : 'Apply to Profile';
+            }
+        }
         const svg = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="${ghPath}"/></svg>`;
         allApplyBtns.forEach(b => { b.innerHTML = `${svg} ${label}`; });
     };
 
-    featureGrid.querySelectorAll('.feature-card:not(.always-on)').forEach(card => {
+    featureGrid.querySelectorAll('.feature-card').forEach(card => {
         card.addEventListener('click', () => {
             const id = card.dataset.id;
-            if (selectedFeats.has(id)) { selectedFeats.delete(id); card.classList.remove('selected'); }
-            else                       { selectedFeats.add(id);    card.classList.add('selected'); }
+            if (selectedFeats.has(id)) {
+                selectedFeats.delete(id);
+                card.classList.remove('selected');
+                card.querySelector('.feature-check').textContent = '';
+            } else {
+                selectedFeats.add(id);
+                card.classList.add('selected');
+                card.querySelector('.feature-check').textContent = '✓';
+            }
             syncApplyLabel();
         });
     });
