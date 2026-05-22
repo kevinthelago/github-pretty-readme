@@ -72,15 +72,16 @@ const todayBranch = () => {
     return `pretty-readme/${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 };
 
-const buildPRBody = ({ scorePushed, readmePushed, topicsApplied, descriptionApplied, grade, score, isFirstRun, headSha }) => {
+const buildPRBody = ({ scorePushed, readmePushed, workflowPushed, topicsApplied, descriptionApplied, grade, score, isFirstRun, headSha }) => {
     const lines = ['Automated update from [github-pretty-readme](https://github.com/kevinthelago/github-pretty-readme).\n'];
 
     if (headSha) lines.push(`> Based on commit \`${headSha.slice(0, 7)}\`\n`);
 
-    if (scorePushed || readmePushed) {
+    if (scorePushed || readmePushed || workflowPushed) {
         lines.push('### Files changed');
-        if (readmePushed) lines.push('- `README.md` — AI-generated project documentation');
-        if (scorePushed)  lines.push(`- \`SCORE.md\` — Code quality report${grade ? ` · **${grade}** (${score}/100)` : ''}`);
+        if (readmePushed)    lines.push('- `README.md` — AI-generated project documentation');
+        if (scorePushed)     lines.push(`- \`SCORE.md\` — Code quality report${grade ? ` · **${grade}** (${score}/100)` : ''}`);
+        if (workflowPushed)  lines.push('- `.github/workflows/pretty-readme-score.yml` — Daily score refresh at 05:00 UTC (uses `GITHUB_TOKEN`, no PAT needed)');
         lines.push('');
     }
 
@@ -236,7 +237,7 @@ export default async (req, res) => {
                 log(`  ↻ New commits detected (${lastEntry.lastCommitSha?.slice(0, 7)} → ${headSha.slice(0, 7)}).`);
             }
 
-            const meta = { topicsApplied: null, descriptionApplied: null, scorePushed: false, readmePushed: false, isFirstRun, headSha };
+            const meta = { topicsApplied: null, descriptionApplied: null, scorePushed: false, readmePushed: false, workflowPushed: false, isFirstRun, headSha };
 
             // ── Apply topics immediately ───────────────────────────────────────
             if (doTopics && (repo.topics?.length ?? 0) < MIN_TOPICS) {
@@ -292,6 +293,35 @@ export default async (req, res) => {
                         meta.score  = analysis.codeQuality?.overall;
                         repoLog.push(`✓ SCORE.md pushed (${meta.grade ?? '?'} ${meta.score ?? '—'}/100).`);
                         log(`  ✓ SCORE.md pushed.`);
+
+                        // Add daily workflow if it doesn't exist on the default branch yet
+                        const workflowPath = '.github/workflows/pretty-readme-score.yml';
+                        const wfExists     = await getFileSha(token, username, repo.name, workflowPath, defaultBranch);
+                        if (!wfExists) {
+                            const serviceUrl   = process.env.BASE_URL ?? 'http://localhost:8080';
+                            const workflowYml  = [
+                                'name: Update Code Quality Score',
+                                'on:',
+                                '  schedule:',
+                                "    - cron: '0 5 * * *'",
+                                '  workflow_dispatch:',
+                                'permissions:',
+                                '  contents: write',
+                                'jobs:',
+                                '  score:',
+                                '    runs-on: ubuntu-latest',
+                                '    steps:',
+                                '      - name: Update SCORE.md',
+                                '        run: >-',
+                                '          curl -sf',
+                                '          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"',
+                                `          "${serviceUrl}/repo-apply?repo=\${{ github.repository }}"`,
+                            ].join('\n') + '\n';
+                            await putFile(token, username, repo.name, workflowPath, workflowYml, null, 'ci: add daily code quality score workflow', branchName);
+                            meta.workflowPushed = true;
+                            repoLog.push(`✓ Daily score workflow added.`);
+                            log(`  ✓ Workflow pushed to PR branch.`);
+                        }
                     }
 
                     if (doReadme) {

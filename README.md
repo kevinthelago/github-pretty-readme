@@ -1,5 +1,7 @@
 # github-pretty-readme
 
+[![Code Quality](https://img.shields.io/badge/code_quality-D_%C2%B7_48%2F100-orange?style=flat-square)](SCORE.md)
+
 `github-pretty-readme` is a Node.js/Express API that generates dynamic, styled SVG graphics and Markdown content for GitHub profile READMEs. It integrates with the GitHub API to fetch user and repository data, uses AI for personalized summaries and recommendations, and can optionally pull typing statistics from Monkeytype. The generated content, including developer ratings, tech stack visualizations, and AI-driven insights, can be embedded directly into markdown files or used to update your GitHub profile repository.
 
 ## Environment Variables

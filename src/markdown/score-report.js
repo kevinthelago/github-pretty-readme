@@ -1,6 +1,23 @@
 const bar  = (score) => '█'.repeat(Math.round(score / 10)) + '░'.repeat(10 - Math.round(score / 10));
 const grade = (g) => ({ 'A+': '🟢', A: '🟢', B: '🔵', C: '🟡', D: '🟠', F: '🔴' }[g] ?? '⚪');
 
+const BADGE_COLORS = { 'A+': 'brightgreen', A: 'green', B: 'blue', C: 'yellow', D: 'orange', F: 'red' };
+
+/**
+ * Returns the shields.io badge markdown for a repo's current code quality score.
+ * Intended to be embedded in README.md and updated each time SCORE.md is regenerated.
+ *
+ * @param {object} analysis  Result of analyzeRepo()
+ */
+export const scoreBadgeMd = (analysis) => {
+    const { overall, grade: g } = analysis.codeQuality;
+    const color = BADGE_COLORS[g] ?? 'lightgrey';
+    // shields.io path encoding: _ = space, %2B = +, %2F = /, %C2%B7 = ·
+    const msg = `${g}_%C2%B7_${overall}%2F100`.replace('+', '%2B');
+    const url = `https://img.shields.io/badge/code_quality-${msg}-${color}?style=flat-square`;
+    return `[![Code Quality](${url})](SCORE.md)`;
+};
+
 const dimSection = (label, dim) => {
     if (!dim) return '';
     const lines = [

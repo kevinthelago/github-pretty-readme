@@ -1,7 +1,7 @@
 import { getRepoSnapshot }                        from '../src/github/repo-contents.js';
 import { analyzeRepo }                            from '../src/ai/repo-analyzer.js';
 import { scanCache }                              from '../src/scan-cache.js';
-import { generateScoreReport, generateReadmeFromOutline } from '../src/markdown/score-report.js';
+import { generateScoreReport, generateReadmeFromOutline, scoreBadgeMd } from '../src/markdown/score-report.js';
 
 const ghHeaders = (token) => ({
     Authorization:  `Bearer ${token}`,
@@ -41,16 +41,40 @@ const putFile = async (token, repo, path, content, sha, message) => {
  * Uses cached scan data if available; otherwise runs a fresh scan.
  */
 export default async (req, res) => {
-    const token    = req.session?.github_token;
-    const username = req.session?.github_username;
+    let token    = req.session?.github_token;
+    let username = req.session?.github_username;
+
+    // Bearer token auth for scheduled GitHub Actions workflows
+    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+        token = req.headers.authorization.slice(7);
+        const repoParam = req.query.repo?.trim() ?? '';
+        if (repoParam.includes('/')) {
+            // owner/repo format supplied — derive username from it (avoids /user call for GITHUB_TOKEN)
+            username = repoParam.split('/')[0];
+        } else {
+            try {
+                const userRes = await fetch('https://api.github.com/user', {
+                    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+                });
+                if (!userRes.ok) return res.status(401).json({ error: 'Invalid token' });
+                username = (await userRes.json()).login;
+            } catch {
+                return res.status(401).json({ error: 'Failed to verify token' });
+            }
+        }
+    }
+
     if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
 
-    const repo          = req.query.repo?.trim();
+    const repoParam      = req.query.repo?.trim();
     const generateReadme = req.query.readme === 'true';
-    if (!repo) return res.status(400).json({ error: 'Missing ?repo= parameter' });
+    if (!repoParam) return res.status(400).json({ error: 'Missing ?repo= parameter' });
+
+    const fullRepo = repoParam.includes('/') ? repoParam : `${username}/${repoParam}`;
+    const repo     = fullRepo.split('/').pop();
 
     const steps = [];
-    const log   = (msg) => { steps.push(msg); console.log(`[repo-apply] ${username}/${repo}: ${msg}`); };
+    const log   = (msg) => { steps.push(msg); console.log(`[repo-apply] ${fullRepo}: ${msg}`); };
 
     try {
         // Use cached scan or run fresh
@@ -64,8 +88,6 @@ export default async (req, res) => {
             log('Using cached scan data…');
         }
 
-        const fullRepo = `${username}/${repo}`;
-
         // Push SCORE.md
         log('Generating SCORE.md…');
         const scoreMd   = generateScoreReport(repo, analysis);
@@ -73,17 +95,55 @@ export default async (req, res) => {
         await putFile(token, fullRepo, 'SCORE.md', scoreMd, scoreFile?.sha, 'chore: update code quality report');
         log('Pushed SCORE.md.');
 
-        // Optionally push README.md
+        // Update README.md — generate fresh or patch the existing badge
+        const badge      = scoreBadgeMd(analysis);
+        const BADGE_RE   = /\[!\[Code Quality\]\(https:\/\/img\.shields\.io[^)]+\)\]\(SCORE\.md\)/;
+        const readmeFile = await getFile(token, fullRepo, 'README.md');
+        const existingMd = readmeFile ? Buffer.from(readmeFile.content, 'base64').toString('utf8') : null;
+        const readmeSha  = readmeFile?.sha ?? null;
+
         if (generateReadme) {
-            const readmeMd = generateReadmeFromOutline(repo, analysis);
-            if (readmeMd) {
+            const generated = generateReadmeFromOutline(repo, analysis);
+            if (generated) {
                 log('Generating README.md…');
-                const readmeFile = await getFile(token, fullRepo, 'README.md');
-                await putFile(token, fullRepo, 'README.md', readmeMd, readmeFile?.sha, 'docs: generate README via github-pretty-readme');
+                await putFile(token, fullRepo, 'README.md', `${badge}\n\n${generated}`, readmeSha, 'docs: generate README via github-pretty-readme');
                 log('Pushed README.md.');
             } else {
                 log('Skipped README.md — no outline data available.');
             }
+        } else if (existingMd && BADGE_RE.test(existingMd)) {
+            const updated = existingMd.replace(BADGE_RE, badge);
+            if (updated !== existingMd) {
+                await putFile(token, fullRepo, 'README.md', updated, readmeSha, 'chore: update code quality badge');
+                log('Updated code quality badge in README.md.');
+            }
+        }
+
+        // Push workflow if not already present in the repo
+        const serviceUrl   = process.env.BASE_URL ?? 'http://localhost:8080';
+        const workflowPath = '.github/workflows/pretty-readme-score.yml';
+        const existingWf   = await getFile(token, fullRepo, workflowPath);
+        if (!existingWf) {
+            const workflowYml = [
+                'name: Update Code Quality Score',
+                'on:',
+                '  schedule:',
+                "    - cron: '0 5 * * *'",
+                '  workflow_dispatch:',
+                'permissions:',
+                '  contents: write',
+                'jobs:',
+                '  score:',
+                '    runs-on: ubuntu-latest',
+                '    steps:',
+                '      - name: Update SCORE.md',
+                '        run: >-',
+                '          curl -sf',
+                '          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"',
+                `          "${serviceUrl}/repo-apply?repo=\${{ github.repository }}"`,
+            ].join('\n') + '\n';
+            await putFile(token, fullRepo, workflowPath, workflowYml, null, 'ci: add daily code quality score workflow');
+            log('Pushed .github/workflows/pretty-readme-score.yml — runs daily at 05:00 UTC using GITHUB_TOKEN (no PAT needed).');
         }
 
         steps.push('Done.');
