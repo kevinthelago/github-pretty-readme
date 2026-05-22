@@ -42,7 +42,16 @@ export const ensureBranch = async (token, owner, repo, branchName, prefetched) =
         });
         if (!patchRes.ok) throw new Error(`PATCH ref → ${patchRes.status}: ${await patchRes.text()}`);
     } else if (!createRes.ok) {
-        throw new Error(`POST ref → ${createRes.status}: ${await createRes.text()}`);
+        const body = await createRes.text();
+        if (createRes.status === 403 && body.includes('accessible by integration')) {
+            throw new Error(
+                `GitHub App permission denied on ${repo}. ` +
+                `Go to Settings → Developer settings → GitHub Apps → your app → Permissions & events, ` +
+                `set Repository permissions → Contents to "Read & write" and Pull requests to "Read & write", ` +
+                `then reinstall the app on your account to accept the new permissions.`
+            );
+        }
+        throw new Error(`POST ref → ${createRes.status}: ${body}`);
     }
 
     return { defaultBranch, sha };
