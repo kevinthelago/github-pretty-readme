@@ -4,504 +4,781 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>github-pretty-readme — AI profile &amp; repo documentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── Design tokens ─────────────────────────────────────────────────────────── */
+:root {
+    --bg:           #fafaf7;
+    --bg-elev:      #ffffff;
+    --bg-sunk:      #f3f2ed;
+    --border:       #e6e4dd;
+    --border-strong:#d4d1c8;
+    --text:         #18181b;
+    --text-2:       #4b4b52;
+    --text-3:       #8a8a93;
+    --accent:       oklch(0.58 0.14 148);
+    --accent-2:     oklch(0.62 0.14 148);
+    --accent-soft:  oklch(0.94 0.04 148);
+    --accent-ink:   oklch(0.30 0.08 148);
+    --danger:       oklch(0.62 0.18 28);
+    --red:          oklch(0.62 0.18 28);
+    --shadow-sm:    0 1px 0 rgba(20,20,24,.04), 0 1px 2px rgba(20,20,24,.06);
+    --shadow-md:    0 1px 0 rgba(20,20,24,.04), 0 8px 24px -8px rgba(20,20,24,.12);
+    --shadow-lg:    0 1px 0 rgba(20,20,24,.04), 0 24px 48px -16px rgba(20,20,24,.18);
+    --radius-sm:    6px;
+    --radius:       10px;
+    --radius-lg:    14px;
+    --font-sans:    "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono:    "Geist Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    /* GitHub render palette (adapts to theme) */
+    --gh-bg:        var(--bg-elev);
+    --gh-bg2:       var(--bg-sunk);
+    --gh-border:    var(--border);
+    --gh-text:      var(--text);
+    --gh-muted:     var(--text-3);
+    --gh-link:      oklch(0.50 0.18 250);
+    --gh-code-bg:   color-mix(in oklch, var(--text) 8%, transparent);
+    --gh-hr:        var(--border);
+    color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg:           #0b0b0e;
+        --bg-elev:      #131318;
+        --bg-sunk:      #08080b;
+        --border:       #25252c;
+        --border-strong:#34343c;
+        --text:         #f4f4f5;
+        --text-2:       #b7b7be;
+        --text-3:       #6f6f78;
+        --accent:       oklch(0.78 0.16 148);
+        --accent-2:     oklch(0.74 0.16 148);
+        --accent-soft:  oklch(0.22 0.06 148);
+        --accent-ink:   oklch(0.92 0.06 148);
+        --shadow-sm:    0 1px 0 rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.5);
+        --shadow-md:    0 1px 0 rgba(0,0,0,.4), 0 8px 24px -8px rgba(0,0,0,.6);
+        --shadow-lg:    0 1px 0 rgba(0,0,0,.4), 0 24px 48px -16px rgba(0,0,0,.7);
+        --gh-link:      #58a6ff;
+        color-scheme: dark;
+    }
+}
+:root[data-theme="dark"] {
+    --bg:           #0b0b0e;
+    --bg-elev:      #131318;
+    --bg-sunk:      #08080b;
+    --border:       #25252c;
+    --border-strong:#34343c;
+    --text:         #f4f4f5;
+    --text-2:       #b7b7be;
+    --text-3:       #6f6f78;
+    --accent:       oklch(0.78 0.16 148);
+    --accent-2:     oklch(0.74 0.16 148);
+    --accent-soft:  oklch(0.22 0.06 148);
+    --accent-ink:   oklch(0.92 0.06 148);
+    --shadow-sm:    0 1px 0 rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.5);
+    --shadow-md:    0 1px 0 rgba(0,0,0,.4), 0 8px 24px -8px rgba(0,0,0,.6);
+    --shadow-lg:    0 1px 0 rgba(0,0,0,.4), 0 24px 48px -16px rgba(0,0,0,.7);
+    --gh-link:      #58a6ff;
+    color-scheme: dark;
+}
 
-        :root {
-            --bg:       #0d1117;
-            --surface:  #161b22;
-            --border:   rgba(255,255,255,0.08);
-            --text:     rgba(255,255,255,0.85);
-            --muted:    rgba(255,255,255,0.4);
-            --accent:   #58a6ff;
-            --purple:   #c792ea;
-            --green:    #3fb950;
-            --red:      #f78c6c;
-            --gh-bg:      #0d1117;
-            --gh-bg2:     #161b22;
-            --gh-border:  #30363d;
-            --gh-text:    #c9d1d9;
-            --gh-muted:   #8b949e;
-            --gh-link:    #58a6ff;
-            --gh-code-bg: rgba(110,118,129,0.4);
-            --gh-hr:      #21262d;
-        }
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "cv11","ss01","ss03";
+    letter-spacing: -0.005em;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; }
 
-        body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; line-height:1.6; }
+/* Subtle dotted grid */
+body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle at 1px 1px, color-mix(in oklch, var(--text) 7%, transparent) 1px, transparent 0);
+    background-size: 24px 24px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent 75%);
+    opacity: 0.6; z-index: 0;
+}
+nav, main, footer, .preview-wrap, #apply-section, #settings-section { position: relative; z-index: 1; }
 
-        /* ── Nav ── */
-        nav {
-            display:flex; align-items:center; justify-content:space-between;
-            padding:18px 40px; border-bottom:1px solid var(--border);
-            position:sticky; top:0; background:rgba(13,17,23,0.9);
-            backdrop-filter:blur(12px); z-index:100;
-        }
-        .nav-logo { font-size:15px; font-weight:600; letter-spacing:0.5px; color:var(--text); text-decoration:none; }
-        .nav-logo span { color:var(--accent); }
-        .nav-right { display:flex; align-items:center; gap:16px; }
-        .nav-user { display:none; align-items:center; gap:10px; }
-        .nav-user img { width:28px; height:28px; border-radius:50%; border:1px solid var(--border); }
-        .nav-user span { font-size:13px; color:var(--muted); }
-        .gh-link { color:var(--muted); text-decoration:none; font-size:13px; transition:color 0.2s; }
-        .gh-link:hover { color:var(--text); }
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+@media (max-width: 720px) { .container { padding: 0 20px; } body { font-size: 14px; } }
 
-        /* ── Buttons ── */
-        .btn {
-            display:inline-flex; align-items:center; gap:8px;
-            padding:12px 24px; border-radius:8px; font-size:14px; font-weight:600;
-            text-decoration:none; transition:opacity 0.2s,transform 0.15s;
-            cursor:pointer; border:none;
-        }
-        .btn:hover:not(:disabled) { opacity:0.85; transform:translateY(-1px); }
-        .btn:disabled { opacity:0.4; cursor:not-allowed; }
-        .btn-primary   { background:var(--accent); color:#0d1117; }
-        .btn-secondary { background:var(--surface); color:var(--text); border:1px solid var(--border); }
-        .btn-sm {
-            background:none; border:1px solid var(--border); color:var(--muted);
-            padding:6px 14px; border-radius:6px; font-size:13px; cursor:pointer;
-            display:inline-flex; align-items:center; gap:6px; transition:border-color 0.2s,color 0.2s;
-        }
-        .btn-sm:hover:not(:disabled) { border-color:var(--text); color:var(--text); }
-        .btn-sm:disabled { opacity:0.4; cursor:not-allowed; }
+/* ── Nav ───────────────────────────────────────────────────────────────────── */
+nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: saturate(180%) blur(12px);
+    -webkit-backdrop-filter: saturate(180%) blur(12px);
+    background: color-mix(in oklch, var(--bg) 75%, transparent);
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+}
+.nav-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.01em; }
+.brand-mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--text); color: var(--bg);
+    display: grid; place-items: center;
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+}
+.brand-name { font-family: var(--font-mono); font-size: 13px; }
+.brand-slash { color: var(--text-3); }
+.brand-name strong { color: var(--text); font-weight: 600; }
+.nav-actions { display: flex; align-items: center; gap: 8px; }
+.nav-link { font-size: 13.5px; color: var(--text-2); padding: 8px 10px; border-radius: 8px; transition: color .15s; }
+.nav-link:hover { color: var(--text); }
+@media (max-width: 720px) { .hide-sm { display: none; } }
+.nav-user { display: flex; align-items: center; gap: 8px; }
+.nav-user img { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); }
+.nav-user span { font-family: var(--font-mono); font-size: 12px; color: var(--text-3); }
 
-        /* ── Hero ── */
-        .hero { text-align:center; padding:88px 24px 64px; max-width:720px; margin:0 auto; }
-        .hero-badge {
-            display:inline-block; background:rgba(88,166,255,0.1);
-            border:1px solid rgba(88,166,255,0.25); color:var(--accent);
-            font-size:12px; letter-spacing:2px; padding:4px 14px;
-            border-radius:20px; margin-bottom:28px; text-transform:uppercase;
-        }
-        h1 { font-size:clamp(30px,6vw,52px); font-weight:700; line-height:1.15; letter-spacing:-1px; margin-bottom:20px; }
-        h1 em { font-style:normal; background:linear-gradient(90deg,var(--accent),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-        .hero-sub { color:var(--muted); font-size:17px; max-width:560px; margin:0 auto 44px; }
-        .cta-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+/* Theme toggle */
+.theme-toggle {
+    position: relative;
+    width: 34px; height: 34px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg-elev);
+    display: grid; place-items: center;
+    color: var(--text-2); transition: all .15s;
+}
+.theme-toggle:hover { color: var(--text); border-color: var(--border-strong); }
+.theme-toggle svg { width: 16px; height: 16px; }
+.theme-toggle .icon-sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-sun  { display: block; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .theme-toggle .icon-sun  { display: block; }
+    :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: none; }
+}
+.theme-toggle[data-mode="system"]::after {
+    content: ""; position: absolute; bottom: 4px; right: 4px;
+    width: 5px; height: 5px; background: var(--accent); border-radius: 50%;
+}
 
-        /* ── Sections ── */
-        .section { max-width:1100px; margin:0 auto; padding:0 24px 80px; }
-        .section-label { font-size:11px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-bottom:16px; }
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 38px; padding: 0 16px; border-radius: 8px;
+    font-weight: 500; font-size: 14px;
+    border: 1px solid transparent; transition: all .15s;
+    white-space: nowrap; cursor: pointer; font-family: var(--font-sans);
+}
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn-primary:hover:not(:disabled) { background: color-mix(in oklch, var(--text) 88%, var(--accent)); }
+.btn-ghost, .btn-secondary { background: var(--bg-elev); color: var(--text); border-color: var(--border); }
+.btn-ghost:hover:not(:disabled), .btn-secondary:hover:not(:disabled) { border-color: var(--border-strong); }
+.btn-lg { height: 44px; padding: 0 18px; font-size: 14.5px; border-radius: 10px; }
+.btn-sm {
+    background: none; border: 1px solid var(--border); color: var(--text-3);
+    padding: 6px 14px; border-radius: 6px; font-size: 13px;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: border-color .2s, color .2s; font-family: var(--font-sans);
+}
+.btn-sm:hover:not(:disabled) { border-color: var(--text); color: var(--text); }
+.btn-sm:disabled { opacity: .4; cursor: not-allowed; }
 
-        /* ── GitHub browser chrome ── */
-        .gh-browser {
-            background:var(--gh-bg2); border:1px solid var(--gh-border);
-            border-radius:10px 10px 0 0; padding:10px 14px;
-            display:flex; align-items:center; gap:10px; position:relative;
-        }
-        .gh-dots { display:flex; gap:6px; flex-shrink:0; }
-        .gh-dot  { width:11px; height:11px; border-radius:50%; }
-        .gh-dot:nth-child(1) { background:#ff5f57; }
-        .gh-dot:nth-child(2) { background:#febc2e; }
-        .gh-dot:nth-child(3) { background:#28c840; }
+/* ── Hero ──────────────────────────────────────────────────────────────────── */
+.hero { padding: 72px 0 48px; }
+@media (max-width: 720px) { .hero { padding: 48px 0 32px; } }
+.hero-inner { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 11px 5px 8px; border-radius: 999px;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2);
+    margin-bottom: 22px; box-shadow: var(--shadow-sm);
+}
+.hero-eyebrow .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 25%, transparent);
+}
+.hero h1 {
+    margin: 0 0 18px;
+    font-size: clamp(34px, 5.8vw, 60px); line-height: 1.05;
+    letter-spacing: -0.035em; font-weight: 600; max-width: 22ch;
+}
+.hero h1 .accent { color: var(--accent); }
+.hero-sub {
+    margin: 0 0 28px; font-size: clamp(15px, 1.4vw, 17px);
+    color: var(--text-2); max-width: 56ch; line-height: 1.55;
+}
+.hero-actions {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    justify-content: center; margin-bottom: 20px;
+}
+.hero-meta {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    justify-content: center; font-family: var(--font-mono); font-size: 12px; color: var(--text-3);
+}
+.meta-item { display: inline-flex; align-items: center; gap: 6px; }
+.meta-item svg { width: 13px; height: 13px; }
 
-        /* ── URL bar & repo dropdown ── */
-        .gh-url-wrapper { flex:1; min-width:0; position:relative; }
-        .gh-url {
-            background:var(--gh-bg); border:1px solid var(--gh-border);
-            border-radius:4px; padding:3px 28px 3px 10px; font-size:12px; color:var(--gh-muted);
-            font-family:'SF Mono','Fira Code',monospace; white-space:nowrap; overflow:hidden;
-            text-overflow:ellipsis; cursor:default; user-select:none; position:relative;
-        }
-        .gh-url.clickable { cursor:pointer; transition:border-color 0.15s; }
-        .gh-url.clickable:hover { border-color:var(--accent); color:var(--gh-text); }
-        .gh-url-caret {
-            position:absolute; right:8px; top:50%; transform:translateY(-50%);
-            color:var(--gh-muted); font-size:10px; pointer-events:none;
-        }
-        .url-dropdown {
-            position:absolute; top:calc(100% + 4px); left:0; right:0;
-            background:var(--gh-bg2); border:1px solid var(--gh-border);
-            border-radius:8px; z-index:200; max-height:260px; overflow-y:auto;
-            box-shadow:0 8px 24px rgba(0,0,0,0.5);
-        }
-        .url-item {
-            padding:8px 14px; cursor:pointer; font-size:13px;
-            border-bottom:1px solid var(--gh-border); transition:background 0.1s;
-        }
-        .url-item:last-child { border-bottom:none; }
-        .url-item:hover { background:rgba(88,166,255,0.08); }
-        .url-item-name { color:var(--gh-text); font-weight:500; font-family:'SF Mono','Fira Code',monospace; font-size:12px; }
-        .url-item-profile .url-item-name { color:var(--accent); }
-        .url-item-desc { display:block; color:var(--gh-muted); font-size:11px; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .url-item-badge { font-size:10px; background:rgba(88,166,255,0.15); color:var(--accent); border-radius:3px; padding:1px 5px; margin-left:6px; vertical-align:middle; }
+/* Feature selector cards */
+.feature-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    gap: 10px; margin: 28px 0; width: 100%; max-width: 880px; text-align: left;
+}
+.feature-card {
+    background: var(--bg-elev); border: 1.5px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+    transition: border-color .15s, background .15s; position: relative;
+}
+.feature-card.always-on {
+    border-color: color-mix(in oklch, var(--accent) 50%, transparent);
+    background: color-mix(in oklch, var(--accent) 5%, var(--bg-elev));
+}
+.feature-grid.interactive .feature-card:not(.always-on) { cursor: pointer; }
+.feature-grid.interactive .feature-card:not(.always-on):hover { border-color: color-mix(in oklch, var(--accent) 45%, var(--border)); }
+.feature-grid.interactive .feature-card.selected {
+    border-color: var(--accent);
+    background: color-mix(in oklch, var(--accent) 8%, var(--bg-elev));
+}
+.feature-check {
+    width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px; font-size: 11px; color: transparent; transition: all .15s;
+}
+.feature-card.always-on .feature-check { border-color: var(--accent); background: var(--accent); color: var(--bg); }
+.feature-grid.interactive .feature-card.selected .feature-check { border-color: var(--accent); background: var(--accent); color: var(--bg); }
+.feature-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+.feature-desc { font-size: 12px; color: var(--text-3); line-height: 1.5; }
 
-        /* ── Preview window ── */
-        .gh-window { border:1px solid var(--gh-border); border-top:none; border-radius:0 0 10px 10px; overflow:hidden; }
-        .preview-tab-bar { display:flex; background:var(--gh-bg2); border-bottom:1px solid var(--gh-border); padding:0 16px; }
-        .preview-tab { background:none; border:none; border-bottom:2px solid transparent; color:var(--gh-muted); padding:10px 16px; font-size:13px; font-weight:500; cursor:pointer; transition:color 0.15s,border-color 0.15s; margin-bottom:-1px; }
-        .preview-tab:hover { color:var(--gh-text); }
-        .preview-tab.active { color:var(--gh-text); border-bottom-color:var(--accent); }
-        .preview-tab-content { display:none; }
-        .preview-tab-content.active { display:block; }
+/* ── Section ───────────────────────────────────────────────────────────────── */
+.section { padding: 72px 0; }
+@media (max-width: 720px) { .section { padding: 48px 0; } }
+.section-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 24px; margin-bottom: 36px;
+}
+.section-head h2 {
+    margin: 0; font-size: clamp(24px, 3vw, 34px);
+    letter-spacing: -0.025em; font-weight: 600;
+}
+.kicker {
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3);
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
+}
+.section-label {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-3);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px;
+}
+@media (max-width: 720px) { .section-head { flex-direction: column; align-items: flex-start; } }
 
-        /* ── GitHub-rendered markdown ── */
-        .gh-render { background:var(--gh-bg); color:var(--gh-text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:15px; line-height:1.6; padding:32px 40px; }
-        .gh-render h1 { font-size:2em; font-weight:600; border-bottom:1px solid var(--gh-hr); padding-bottom:0.3em; margin:0 0 16px; }
-        .gh-render h2 { font-size:1.5em; font-weight:600; border-bottom:1px solid var(--gh-hr); padding-bottom:0.3em; margin:24px 0 16px; }
-        .gh-render h3 { font-size:1.25em; font-weight:600; margin:24px 0 16px; }
-        .gh-render h4 { font-size:1em; font-weight:600; margin:16px 0 8px; }
-        .gh-render p  { margin:0 0 16px; }
-        .gh-render em { font-style:italic; }
-        .gh-render strong { font-weight:600; }
-        .gh-render a  { color:var(--gh-link); text-decoration:none; }
-        .gh-render a:hover { text-decoration:underline; }
-        .gh-render img { max-width:100%; border-radius:4px; display:block; margin:0 0 16px; }
-        .gh-render code { background:var(--gh-code-bg); border-radius:6px; font-size:85%; padding:0.2em 0.4em; font-family:'SF Mono','Fira Code',monospace; }
-        .gh-render pre { background:var(--gh-bg2); border:1px solid var(--gh-border); border-radius:6px; padding:16px; overflow-x:auto; margin:0 0 16px; }
-        .gh-render pre code { background:none; padding:0; font-size:100%; border-radius:0; }
-        .gh-render table { border-spacing:0; border-collapse:collapse; width:100%; margin:0 0 16px; font-size:14px; }
-        .gh-render th, .gh-render td { padding:6px 13px; border:1px solid var(--gh-border); }
-        .gh-render th { background:var(--gh-bg2); font-weight:600; }
-        .gh-render tr:nth-child(even) { background:rgba(255,255,255,0.03); }
-        .gh-render blockquote { border-left:3px solid #3d444d; padding:0 1em; color:var(--gh-muted); margin:0 0 16px; }
-        .gh-render ul, .gh-render ol { padding-left:2em; margin:0 0 16px; }
-        .gh-render li + li { margin-top:4px; }
-        .gh-render hr { height:0; border:0; border-top:1px solid var(--gh-hr); margin:24px 0; }
-        .gh-render .profile-badges { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
-        .gh-render .profile-badges img { margin:0; display:inline; }
+/* ── Steps ─────────────────────────────────────────────────────────────────── */
+.steps {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden;
+}
+@media (max-width: 720px) { .steps { grid-template-columns: 1fr; } }
+.step { background: var(--bg-elev); padding: 24px 22px; }
+.step .step-num {
+    display: inline-block; font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-3); margin-bottom: 14px; letter-spacing: 0.08em;
+}
+.step h4 { margin: 0 0 8px; font-size: 16px; letter-spacing: -0.01em; font-weight: 600; }
+.step p  { margin: 0; font-size: 13.5px; color: var(--text-2); }
+.step code {
+    background: color-mix(in oklch, var(--accent) 12%, transparent);
+    border-radius: 4px; padding: 1px 6px; font-size: 12px;
+    color: var(--accent-ink); font-family: var(--font-mono);
+}
 
-        /* ── Loading states ── */
-        .insights-gate { padding:48px 40px; text-align:center; background:var(--gh-bg); }
-        .insights-gate p { font-size:13px; color:var(--gh-muted); margin-bottom:16px; line-height:1.6; }
-        .insights-loading { background:var(--gh-bg); padding:48px 40px; text-align:center; display:none; }
-        .loading-dots { font-size:14px; color:var(--gh-muted); }
-        .loading-dots span { animation:blink 1.4s infinite; display:inline-block; }
-        .loading-dots span:nth-child(2) { animation-delay:.2s; }
-        .loading-dots span:nth-child(3) { animation-delay:.4s; }
-        @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
-        .img-loading { background:rgba(255,255,255,0.04); border:1px solid var(--gh-border); border-radius:6px; height:140px; display:flex; align-items:center; justify-content:center; color:var(--gh-muted); font-size:13px; margin-bottom:16px; }
+/* ── GitHub browser chrome ─────────────────────────────────────────────────── */
+.preview-wrap { padding: 0 0 72px; }
+.gh-browser {
+    background: var(--gh-bg2); border: 1px solid var(--gh-border);
+    border-radius: 10px 10px 0 0; padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px; position: relative;
+}
+.gh-dots { display: flex; gap: 6px; flex-shrink: 0; }
+.gh-dot  { width: 11px; height: 11px; border-radius: 50%; }
+.gh-dot:nth-child(1) { background: #ff5f57; }
+.gh-dot:nth-child(2) { background: #febc2e; }
+.gh-dot:nth-child(3) { background: #28c840; }
+.gh-url-wrapper { flex: 1; min-width: 0; position: relative; }
+.gh-url {
+    background: var(--gh-bg); border: 1px solid var(--gh-border);
+    border-radius: 4px; padding: 3px 28px 3px 10px; font-size: 12px;
+    color: var(--gh-muted); font-family: var(--font-mono);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    cursor: default; user-select: none;
+}
+.gh-url.clickable { cursor: pointer; transition: border-color .15s; }
+.gh-url.clickable:hover { border-color: var(--accent); color: var(--gh-text); }
+.gh-url-caret {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    color: var(--gh-muted); font-size: 10px; pointer-events: none;
+}
+.url-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 8px; z-index: 200; max-height: 260px; overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+}
+.url-item {
+    padding: 8px 14px; cursor: pointer; font-size: 13px;
+    border-bottom: 1px solid var(--border); transition: background .1s;
+}
+.url-item:last-child { border-bottom: none; }
+.url-item:hover { background: color-mix(in oklch, var(--accent) 8%, transparent); }
+.url-item-name { color: var(--text); font-weight: 500; font-family: var(--font-mono); font-size: 12px; }
+.url-item-profile .url-item-name { color: var(--accent-ink); }
+.url-item-desc { display: block; color: var(--text-3); font-size: 11px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.url-item-badge { font-size: 10px; background: color-mix(in oklch, var(--accent) 15%, transparent); color: var(--accent-ink); border-radius: 3px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
 
-        /* ── Code quality grade UI ── */
-        .grade-hero { display:flex; align-items:center; gap:20px; margin-bottom:24px; padding-bottom:24px; border-bottom:1px solid var(--gh-hr); }
-        .grade-badge {
-            width:64px; height:64px; border-radius:12px; display:flex; align-items:center;
-            justify-content:center; font-size:26px; font-weight:800; flex-shrink:0; letter-spacing:-1px;
-        }
-        .grade-A\+ { background:rgba(63,185,80,0.15);  color:#3fb950; border:2px solid rgba(63,185,80,0.4); }
-        .grade-A   { background:rgba(63,185,80,0.12);  color:#3fb950; border:2px solid rgba(63,185,80,0.3); }
-        .grade-B   { background:rgba(88,166,255,0.12); color:#58a6ff; border:2px solid rgba(88,166,255,0.3); }
-        .grade-C   { background:rgba(210,153,34,0.12); color:#d2a22a; border:2px solid rgba(210,153,34,0.3); }
-        .grade-D   { background:rgba(248,81,73,0.12);  color:#f85149; border:2px solid rgba(248,81,73,0.3); }
-        .grade-F   { background:rgba(248,81,73,0.18);  color:#f85149; border:2px solid rgba(248,81,73,0.4); }
-        .grade-hero-info h2 { font-size:1.15em; font-weight:600; margin-bottom:2px; }
-        .grade-hero-info p  { color:var(--gh-muted); font-size:13px; margin:0 0 6px; }
-        .grade-overall { font-size:22px; font-weight:700; }
+/* ── Preview window ────────────────────────────────────────────────────────── */
+.gh-window { border: 1px solid var(--gh-border); border-top: none; border-radius: 0 0 10px 10px; overflow: hidden; }
+.preview-tab-bar { display: flex; background: var(--gh-bg2); border-bottom: 1px solid var(--gh-border); padding: 0 16px; }
+.preview-tab {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--text-3); padding: 10px 16px; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: color .15s, border-color .15s; margin-bottom: -1px;
+}
+.preview-tab:hover { color: var(--text); }
+.preview-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.preview-tab-content { display: none; }
+.preview-tab-content.active { display: block; }
 
-        .quality-dims { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-bottom:24px; }
-        .quality-dim { background:var(--gh-bg2); border:1px solid var(--gh-border); border-radius:8px; padding:14px 16px; }
-        .dim-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:13px; font-weight:500; }
-        .dim-grade { font-size:11px; font-weight:700; padding:2px 7px; border-radius:4px; }
-        .dim-grade-A\+, .dim-grade-A { background:rgba(63,185,80,0.15); color:#3fb950; }
-        .dim-grade-B { background:rgba(88,166,255,0.15); color:#58a6ff; }
-        .dim-grade-C { background:rgba(210,153,34,0.15); color:#d2a22a; }
-        .dim-grade-D, .dim-grade-F { background:rgba(248,81,73,0.15); color:#f85149; }
-        .score-bar-bg { background:rgba(255,255,255,0.06); border-radius:4px; height:6px; margin-bottom:6px; overflow:hidden; }
-        .score-bar-fill { height:100%; border-radius:4px; transition:width 0.6s ease; }
-        .dim-score { font-size:11px; color:var(--gh-muted); }
-        .dim-notes { font-size:12px; color:var(--gh-muted); margin-top:6px; line-height:1.5; }
+/* ── GitHub-rendered markdown ──────────────────────────────────────────────── */
+.gh-render {
+    background: var(--gh-bg); color: var(--gh-text);
+    font-family: var(--font-sans); font-size: 15px; line-height: 1.6; padding: 32px 40px;
+}
+.gh-render h1 { font-size: 2em; font-weight: 600; border-bottom: 1px solid var(--gh-hr); padding-bottom: .3em; margin: 0 0 16px; }
+.gh-render h2 { font-size: 1.5em; font-weight: 600; border-bottom: 1px solid var(--gh-hr); padding-bottom: .3em; margin: 24px 0 16px; }
+.gh-render h3 { font-size: 1.25em; font-weight: 600; margin: 24px 0 16px; }
+.gh-render h4 { font-size: 1em; font-weight: 600; margin: 16px 0 8px; }
+.gh-render p  { margin: 0 0 16px; }
+.gh-render em { font-style: italic; }
+.gh-render strong { font-weight: 600; }
+.gh-render a  { color: var(--gh-link); }
+.gh-render a:hover { text-decoration: underline; }
+.gh-render img { max-width: 100%; border-radius: 4px; display: block; margin: 0 0 16px; }
+.gh-render code { background: var(--gh-code-bg); border-radius: 6px; font-size: 85%; padding: .2em .4em; font-family: var(--font-mono); }
+.gh-render pre { background: var(--gh-bg2); border: 1px solid var(--gh-border); border-radius: 6px; padding: 16px; overflow-x: auto; margin: 0 0 16px; }
+.gh-render pre code { background: none; padding: 0; font-size: 100%; }
+.gh-render table { border-spacing: 0; border-collapse: collapse; width: 100%; margin: 0 0 16px; font-size: 14px; }
+.gh-render th, .gh-render td { padding: 6px 13px; border: 1px solid var(--gh-border); }
+.gh-render th { background: var(--gh-bg2); font-weight: 600; }
+.gh-render tr:nth-child(even) { background: color-mix(in oklch, var(--text) 3%, transparent); }
+.gh-render blockquote { border-left: 3px solid var(--border-strong); padding: 0 1em; color: var(--gh-muted); margin: 0 0 16px; }
+.gh-render ul, .gh-render ol { padding-left: 2em; margin: 0 0 16px; }
+.gh-render li + li { margin-top: 4px; }
+.gh-render hr { height: 0; border: 0; border-top: 1px solid var(--gh-hr); margin: 24px 0; }
+.gh-render .profile-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.gh-render .profile-badges img { margin: 0; display: inline; }
 
-        .tech-tags { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px; }
-        .tech-tag { background:var(--gh-bg2); border:1px solid var(--gh-border); border-radius:4px; padding:3px 10px; font-size:12px; color:var(--gh-muted); font-family:'SF Mono','Fira Code',monospace; }
+/* ── Loading states ────────────────────────────────────────────────────────── */
+.insights-gate { padding: 48px 40px; text-align: center; background: var(--gh-bg); }
+.insights-gate p { font-size: 13px; color: var(--gh-muted); margin-bottom: 16px; line-height: 1.6; }
+.insights-loading { background: var(--gh-bg); padding: 48px 40px; text-align: center; display: none; }
+.loading-dots { font-size: 14px; color: var(--gh-muted); }
+.loading-dots span { animation: blink 1.4s infinite; display: inline-block; }
+.loading-dots span:nth-child(2) { animation-delay: .2s; }
+.loading-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+.img-loading {
+    background: color-mix(in oklch, var(--text) 4%, transparent);
+    border: 1px solid var(--gh-border); border-radius: 6px; height: 140px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--gh-muted); font-size: 13px; margin-bottom: 16px;
+}
 
-        .suggestions-list { list-style:none; padding:0; }
-        .suggestions-list li { padding:8px 0; border-bottom:1px solid var(--gh-hr); font-size:14px; color:var(--gh-text); }
-        .suggestions-list li:last-child { border-bottom:none; }
-        .suggestions-list li::before { content:'→ '; color:var(--accent); font-weight:600; }
+/* ── Code quality grades ───────────────────────────────────────────────────── */
+.grade-hero { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--gh-hr); }
+.grade-badge { width: 64px; height: 64px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; flex-shrink: 0; letter-spacing: -1px; }
+.grade-A\+, .grade-A { background: rgba(63,185,80,.15); color: #3fb950; border: 2px solid rgba(63,185,80,.4); }
+.grade-B { background: rgba(88,166,255,.12); color: #58a6ff; border: 2px solid rgba(88,166,255,.3); }
+.grade-C { background: rgba(210,153,34,.12); color: #d2a22a; border: 2px solid rgba(210,153,34,.3); }
+.grade-D { background: rgba(248,81,73,.12); color: #f85149; border: 2px solid rgba(248,81,73,.3); }
+.grade-F { background: rgba(248,81,73,.18); color: #f85149; border: 2px solid rgba(248,81,73,.4); }
+.grade-hero-info h2 { font-size: 1.15em; font-weight: 600; margin-bottom: 2px; }
+.grade-hero-info p  { color: var(--gh-muted); font-size: 13px; margin: 0 0 6px; }
+.grade-overall { font-size: 22px; font-weight: 700; }
+.quality-dims { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.quality-dim { background: var(--gh-bg2); border: 1px solid var(--gh-border); border-radius: 8px; padding: 14px 16px; }
+.dim-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: 500; }
+.dim-grade { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+.dim-grade-A\+, .dim-grade-A { background: rgba(63,185,80,.15); color: #3fb950; }
+.dim-grade-B { background: rgba(88,166,255,.15); color: #58a6ff; }
+.dim-grade-C { background: rgba(210,153,34,.15); color: #d2a22a; }
+.dim-grade-D, .dim-grade-F { background: rgba(248,81,73,.15); color: #f85149; }
+.score-bar-bg { background: color-mix(in oklch, var(--text) 6%, transparent); border-radius: 4px; height: 6px; margin-bottom: 6px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
+.dim-score { font-size: 11px; color: var(--gh-muted); }
+.dim-notes { font-size: 12px; color: var(--gh-muted); margin-top: 6px; line-height: 1.5; }
+.tech-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.tech-tag { background: var(--gh-bg2); border: 1px solid var(--gh-border); border-radius: 4px; padding: 3px 10px; font-size: 12px; color: var(--gh-muted); font-family: var(--font-mono); }
+.suggestions-list { list-style: none; padding: 0; }
+.suggestions-list li { padding: 8px 0; border-bottom: 1px solid var(--gh-hr); font-size: 14px; color: var(--gh-text); }
+.suggestions-list li:last-child { border-bottom: none; }
+.suggestions-list li::before { content: '→ '; color: var(--accent-ink); font-weight: 600; }
 
-        /* ── Apply section ── */
-        .apply-section { text-align:center; }
-        .apply-log {
-            margin:16px auto 0; max-width:600px;
-            background:rgba(255,255,255,0.03); border:1px solid var(--border);
-            border-radius:8px; padding:12px 16px;
-            font-family:'SF Mono','Fira Code',monospace; font-size:12px; line-height:1.9;
-            text-align:left; max-height:200px; overflow-y:auto; display:none;
-        }
-        .apply-log .ok   { color:var(--green); }
-        .apply-log .err  { color:var(--red); }
-        .apply-log .done { color:var(--accent); font-weight:600; }
-        .apply-msg { font-size:13px; margin-top:12px; color:var(--muted); display:none; }
-        .apply-msg.success { color:var(--green); }
-        .apply-msg.error   { color:var(--red); }
+/* ── Apply section ─────────────────────────────────────────────────────────── */
+#apply-section { padding: 0 0 64px; }
+.apply-section { text-align: center; }
+.apply-log {
+    margin: 16px auto 0; max-width: 600px;
+    background: color-mix(in oklch, var(--text) 3%, transparent);
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.9;
+    text-align: left; max-height: 200px; overflow-y: auto; display: none;
+}
+.apply-log .ok   { color: #3fb950; }
+.apply-log .err  { color: var(--danger); }
+.apply-log .done { color: var(--accent-ink); font-weight: 600; }
+.apply-msg { font-size: 13px; margin-top: 12px; color: var(--text-3); display: none; }
+.apply-msg.success { color: #3fb950; }
+.apply-msg.error   { color: var(--danger); }
 
-        /* ── Settings cards ── */
-        .cards-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; }
-        .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; }
-        .card-title { font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; display:flex; align-items:center; justify-content:space-between; }
-        .card-desc { font-size:13px; color:var(--muted); margin-bottom:14px; }
-        .mt-field { display:flex; flex-direction:column; gap:4px; margin-bottom:10px; }
-        .mt-field label { font-size:12px; color:var(--muted); }
-        .mt-field input { background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:7px 10px; font-size:13px; width:100%; }
-        .mt-field input:focus { outline:none; border-color:var(--accent); }
-        .mt-status { font-size:12px; color:var(--green); }
-        .inline-error { font-size:12px; color:var(--red); margin-top:6px; display:none; }
-        .card .apply-log { margin:10px 0 0; max-height:220px; }
-        .card .apply-msg { margin-top:8px; }
+/* ── Settings ──────────────────────────────────────────────────────────────── */
+#settings-section { padding: 0 0 64px; }
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.card-title { font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; font-family: var(--font-mono); }
+.card-desc { font-size: 13px; color: var(--text-3); margin-bottom: 14px; }
+.mt-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.mt-field label { font-size: 12px; color: var(--text-3); }
+.mt-field input { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 7px 10px; font-size: 13px; width: 100%; font-family: var(--font-sans); }
+.mt-field input:focus { outline: none; border-color: var(--accent); }
+.mt-status { font-size: 12px; color: #3fb950; }
+.inline-error { font-size: 12px; color: var(--danger); margin-top: 6px; display: none; }
+.card .apply-log { margin: 10px 0 0; max-height: 220px; }
+.card .apply-msg { margin-top: 8px; }
 
-        /* ── Component canvas (drag-and-drop) ── */
-        .c-wrap { position:relative; margin-bottom:16px; border:1px solid transparent; border-radius:8px; transition:border-color .15s,opacity .2s; }
-        .c-wrap:hover { border-color:rgba(255,255,255,0.07); }
-        .c-wrap.dragging { opacity:.3; }
-        .c-wrap.drag-over { border-color:var(--accent) !important; border-style:dashed; }
-        .c-header { display:flex; align-items:center; gap:8px; padding:4px 6px 2px; opacity:0; transition:opacity .15s; pointer-events:none; }
-        .c-wrap:hover .c-header { opacity:1; pointer-events:auto; }
-        .c-handle { cursor:grab; color:var(--muted); font-size:18px; user-select:none; line-height:1; padding:2px; }
-        .c-handle:active { cursor:grabbing; }
-        .c-label { flex:1; font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); }
-        .c-delete { background:none; border:none; cursor:pointer; color:var(--muted); font-size:18px; padding:0 3px; line-height:1; transition:color .15s; }
-        .c-delete:hover { color:var(--red); }
-        .c-add-row { text-align:center; padding:4px 0 8px; position:relative; }
-        .c-add-btn { background:none; border:1px dashed var(--gh-border); color:var(--gh-muted); font-size:12px; padding:8px 20px; border-radius:6px; cursor:pointer; width:100%; transition:border-color .15s,color .15s; font-family:inherit; }
-        .c-add-btn:hover { border-color:var(--accent); color:var(--accent); }
-        .c-add-panel { position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:var(--gh-bg2); border:1px solid var(--gh-border); border-radius:8px; padding:6px; min-width:200px; z-index:50; box-shadow:0 4px 20px rgba(0,0,0,.4); display:none; }
-        .c-add-item { padding:8px 14px; font-size:13px; border-radius:5px; cursor:pointer; white-space:nowrap; color:var(--gh-text); }
-        .c-add-item:hover { background:rgba(88,166,255,.1); color:var(--accent); }
+/* ── Component canvas ──────────────────────────────────────────────────────── */
+.c-wrap { position: relative; margin-bottom: 16px; border: 1px solid transparent; border-radius: 8px; transition: border-color .15s, opacity .2s; }
+.c-wrap:hover { border-color: color-mix(in oklch, var(--border-strong) 60%, transparent); }
+.c-wrap.dragging { opacity: .3; }
+.c-wrap.drag-over { border-color: var(--accent) !important; border-style: dashed; }
+.c-header { display: flex; align-items: center; gap: 8px; padding: 4px 6px 2px; opacity: 0; transition: opacity .15s; pointer-events: none; }
+.c-wrap:hover .c-header { opacity: 1; pointer-events: auto; }
+.c-handle { cursor: grab; color: var(--text-3); font-size: 18px; user-select: none; line-height: 1; padding: 2px; }
+.c-handle:active { cursor: grabbing; }
+.c-label { flex: 1; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-3); font-family: var(--font-mono); }
+.c-delete { background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 18px; padding: 0 3px; line-height: 1; transition: color .15s; }
+.c-delete:hover { color: var(--danger); }
+.c-add-row { text-align: center; padding: 4px 0 8px; position: relative; }
+.c-add-btn { background: none; border: 1px dashed var(--border); color: var(--text-3); font-size: 12px; padding: 8px 20px; border-radius: 6px; cursor: pointer; width: 100%; transition: border-color .15s, color .15s; font-family: var(--font-sans); }
+.c-add-btn:hover { border-color: var(--accent); color: var(--accent-ink); }
+.c-add-panel { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 6px; min-width: 200px; z-index: 50; box-shadow: var(--shadow-lg); display: none; }
+.c-add-item { padding: 8px 14px; font-size: 13px; border-radius: 5px; cursor: pointer; white-space: nowrap; color: var(--text); }
+.c-add-item:hover { background: color-mix(in oklch, var(--accent) 10%, transparent); color: var(--accent-ink); }
 
-        /* ── Feature selector (hero) ── */
-        .feature-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:10px; margin:32px auto 28px; max-width:860px; text-align:left; }
-        .feature-card { background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:16px; transition:border-color .15s,background .15s; position:relative; }
-        .feature-card.always-on { border-color:rgba(63,185,80,0.35); background:rgba(63,185,80,0.04); }
-        .feature-grid.interactive .feature-card:not(.always-on) { cursor:pointer; }
-        .feature-grid.interactive .feature-card:not(.always-on):hover { border-color:rgba(88,166,255,0.35); }
-        .feature-grid.interactive .feature-card.selected { border-color:var(--accent); background:rgba(88,166,255,0.07); }
-        .feature-check { width:18px; height:18px; border-radius:4px; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; margin-bottom:10px; font-size:11px; color:transparent; transition:all .15s; }
-        .feature-card.always-on .feature-check { border-color:var(--green); background:var(--green); color:#0d1117; }
-        .feature-grid.interactive .feature-card.selected .feature-check { border-color:var(--accent); background:var(--accent); color:#0d1117; }
-        .feature-title { font-size:13px; font-weight:600; margin-bottom:4px; color:var(--text); }
-        .feature-desc { font-size:12px; color:var(--muted); line-height:1.5; }
-
-        /* ── Steps ── */
-        .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-top:8px; }
-        .step { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:24px; }
-        .step-num { width:28px; height:28px; border-radius:50%; background:rgba(88,166,255,0.12); color:var(--accent); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-bottom:14px; }
-        .step h4 { font-size:14px; margin-bottom:6px; }
-        .step p  { font-size:13px; color:var(--muted); }
-        .step code { background:rgba(88,166,255,0.1); border-radius:4px; padding:1px 6px; font-size:12px; color:var(--accent); font-family:'SF Mono','Fira Code',monospace; }
-
-        /* ── Footer ── */
-        footer { border-top:1px solid var(--border); text-align:center; padding:32px 24px; color:var(--muted); font-size:13px; }
-        footer a { color:var(--accent); text-decoration:none; }
+/* ── Footer ────────────────────────────────────────────────────────────────── */
+footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px; }
+.footer-inner { display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
+.footer-small { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3); }
+.footer-small a { color: var(--text-2); }
+.footer-small a:hover { color: var(--text); }
+.footer-links { display: flex; gap: 20px; font-family: var(--font-mono); font-size: 12px; color: var(--text-2); }
+.footer-links a:hover { color: var(--text); }
     </style>
 </head>
 <body>
 
+<!-- ── Nav ──────────────────────────────────────────────────────────────────── -->
 <nav>
-    <a class="nav-logo" href="/">github-pretty-<span>readme</span></a>
-    <div class="nav-right">
-        <div class="nav-user" id="nav-user">
-            <img id="nav-avatar" src="" alt="" />
-            <span id="nav-username"></span>
+    <div class="container nav-inner">
+        <a class="brand" href="/">
+            <span class="brand-mark">~</span>
+            <span class="brand-name">
+                <span class="brand-slash">github / </span><strong>pretty-readme</strong>
+            </span>
+        </a>
+        <div class="nav-actions">
+            <div class="nav-user" id="nav-user" style="display:none">
+                <img id="nav-avatar" src="" alt="" />
+                <span id="nav-username"></span>
+            </div>
+            <a class="nav-link hide-sm" href="https://github.com/kevinthelago/github-pretty-readme" target="_blank">Source</a>
+            <button class="theme-toggle" id="theme-toggle" data-mode="system" title="Cycle theme" aria-label="Toggle theme">
+                <svg viewBox="0 0 16 16" fill="none" class="icon-moon">
+                    <path d="M13.5 9.5A6 6 0 1 1 6.5 2.5a5 5 0 0 0 7 7z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+                </svg>
+                <svg viewBox="0 0 16 16" fill="none" class="icon-sun">
+                    <circle cx="8" cy="8" r="3.2" stroke="currentColor" stroke-width="1.4"/>
+                    <g stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+                        <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/>
+                    </g>
+                </svg>
+            </button>
         </div>
-        <a class="gh-link" href="https://github.com/kevinthelago/github-pretty-readme" target="_blank">View on GitHub →</a>
     </div>
 </nav>
 
-<!-- ── Hero ────────────────────────────────────────────────────────────────── -->
-<section class="hero">
-    <div class="hero-badge">Open source · AI powered</div>
-    <h1>Every repo, documented.<br/><em>Every profile, upgraded.</em></h1>
-    <p class="hero-sub">
-        AI scans your repositories, grades code quality, generates READMEs,
-        and builds a developer profile — all pushed to GitHub automatically.
-    </p>
-    <div class="feature-grid" id="feature-grid">
-        <div class="feature-card always-on" data-id="profile">
-            <div class="feature-check">✓</div>
-            <div class="feature-title">Profile Summary</div>
-            <div class="feature-desc">Developer rating, tech grid, and AI insights for your profile README.</div>
-        </div>
-        <div class="feature-card" data-id="score">
-            <div class="feature-check"></div>
-            <div class="feature-title">SCORE.md</div>
-            <div class="feature-desc">Code quality grade across 6 dimensions pushed to every repo.</div>
-        </div>
-        <div class="feature-card" data-id="readme">
-            <div class="feature-check"></div>
-            <div class="feature-title">README Generation</div>
-            <div class="feature-desc">AI-written README from code analysis for repos that need one.</div>
-        </div>
-        <div class="feature-card" data-id="topics">
-            <div class="feature-check"></div>
-            <div class="feature-title">AI Topics</div>
-            <div class="feature-desc">Suggest and apply topics to repos with fewer than 3 tags.</div>
-        </div>
-        <div class="feature-card" data-id="descriptions">
-            <div class="feature-check"></div>
-            <div class="feature-title">AI Descriptions</div>
-            <div class="feature-desc">Write concise descriptions for repos missing one.</div>
-        </div>
-    </div>
+<main>
 
-    <div class="cta-row" id="cta-row">
-        <a class="btn btn-primary" href="/auth/github">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-            Connect with GitHub
-        </a>
-        <a class="btn btn-secondary" href="https://github.com/kevinthelago/github-pretty-readme" target="_blank">Self-host</a>
+<!-- ── Hero ─────────────────────────────────────────────────────────────────── -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-inner">
+            <div class="hero-eyebrow">
+                <span class="dot"></span>
+                <span>Open source · AI powered · Gemini 2.5 Flash</span>
+            </div>
+            <h1>Every repo, documented.<br/><span class="accent">Every profile, upgraded.</span></h1>
+            <p class="hero-sub">
+                AI scans your repositories, grades code quality, generates READMEs,
+                and builds a developer profile — all pushed to GitHub automatically.
+            </p>
+
+            <div class="feature-grid" id="feature-grid">
+                <div class="feature-card always-on" data-id="profile">
+                    <div class="feature-check">✓</div>
+                    <div class="feature-title">Profile Summary</div>
+                    <div class="feature-desc">Developer rating, tech grid, and AI insights for your profile README.</div>
+                </div>
+                <div class="feature-card" data-id="score">
+                    <div class="feature-check"></div>
+                    <div class="feature-title">SCORE.md</div>
+                    <div class="feature-desc">Code quality grade across 6 dimensions pushed to every repo.</div>
+                </div>
+                <div class="feature-card" data-id="readme">
+                    <div class="feature-check"></div>
+                    <div class="feature-title">README Generation</div>
+                    <div class="feature-desc">AI-written README from code analysis for repos that need one.</div>
+                </div>
+                <div class="feature-card" data-id="topics">
+                    <div class="feature-check"></div>
+                    <div class="feature-title">AI Topics</div>
+                    <div class="feature-desc">Suggest and apply topics to repos with fewer than 3 tags.</div>
+                </div>
+                <div class="feature-card" data-id="descriptions">
+                    <div class="feature-check"></div>
+                    <div class="feature-title">AI Descriptions</div>
+                    <div class="feature-desc">Write concise descriptions for repos missing one.</div>
+                </div>
+            </div>
+
+            <div class="hero-actions" id="cta-row">
+                <a class="btn btn-primary btn-lg" href="/auth/github">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                    Connect with GitHub
+                </a>
+                <a class="btn btn-ghost btn-lg" href="https://github.com/kevinthelago/github-pretty-readme" target="_blank">Self-host</a>
+            </div>
+
+            <div class="hero-meta">
+                <span class="meta-item">
+                    <svg viewBox="0 0 16 16" fill="none"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Read &amp; write access · revocable
+                </span>
+                <span class="meta-item">
+                    <svg viewBox="0 0 16 16" fill="none"><path d="M9 1.5L3.5 9h4l-1 5.5L13 7h-4l1-5.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                    Daily at 05:00 UTC
+                </span>
+                <span class="meta-item">
+                    <svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.4 4.1 4.1 1.4-4.1 1.4L8 12.5l-1.4-4.1-4.1-1.4 4.1-1.4L8 1.5z" fill="currentColor"/></svg>
+                    Gemini-powered
+                </span>
+            </div>
+        </div>
     </div>
 </section>
 
-<!-- ── How it works ─────────────────────────────────────────────────────────── -->
-<div class="section">
-    <p class="section-label">How it works</p>
-    <div class="steps">
-        <div class="step">
-            <div class="step-num">1</div>
-            <h4>Connect</h4>
-            <p>Sign in with GitHub. No token creation, no copy-pasting — one click and you're in.</p>
+<!-- ── How it works ──────────────────────────────────────────────────────────── -->
+<section class="section" id="how">
+    <div class="container">
+        <div class="section-head">
+            <div>
+                <div class="kicker">How it works</div>
+                <h2>Three steps. Then it runs every morning at 5&nbsp;UTC.</h2>
+            </div>
+            <p style="color:var(--text-2);max-width:38ch;font-size:14.5px;margin:0">Once you connect, a GitHub Action lands in your profile repo and refreshes everything daily.</p>
         </div>
-        <div class="step">
-            <div class="step-num">2</div>
-            <h4>Scan</h4>
-            <p>AI reads every repo's file tree and grades code quality across six dimensions: testing, docs, tooling, CI, security, and structure.</p>
-        </div>
-        <div class="step">
-            <div class="step-num">3</div>
-            <h4>Generate</h4>
-            <p>Per-repo READMEs and <code>SCORE.md</code> reports, a profile summary, tech radar, and developer score card — all written for you.</p>
-        </div>
-        <div class="step">
-            <div class="step-num">4</div>
-            <h4>Stay fresh</h4>
-            <p>A workflow lands in your profile repo. Add one <code>GH_PAT</code> secret to activate daily auto-updates.</p>
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">01 / CONNECT</div>
+                <h4>Sign in with GitHub.</h4>
+                <p>One click — no token creation, no copy-pasting. Revokable from GitHub settings at any time.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">02 / GENERATE</div>
+                <h4>Preview &amp; apply.</h4>
+                <p>AI reads every repo, scores quality across six dimensions, and drafts READMEs, topics, and a <code>SCORE.md</code> for each.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">03 / FORGET</div>
+                <h4>The Action takes over.</h4>
+                <p>Add a <code>GH_PAT</code> secret to your profile repo and everything updates overnight — profile, descriptions, the lot.</p>
+            </div>
         </div>
     </div>
-</div>
+</section>
 
-<!-- ── Preview ──────────────────────────────────────────────────────────────── -->
-<div class="section">
-    <p class="section-label">Live preview</p>
+<!-- ── Live preview ───────────────────────────────────────────────────────────── -->
+<div class="preview-wrap">
+    <div class="container">
+        <p class="section-label">Live preview</p>
 
-    <div class="gh-browser">
-        <div class="gh-dots">
-            <div class="gh-dot"></div><div class="gh-dot"></div><div class="gh-dot"></div>
-        </div>
-        <div class="gh-url-wrapper">
-            <div class="gh-url" id="preview-url">github.com/kevinthelago/kevinthelago</div>
-            <span class="gh-url-caret" id="url-caret" style="display:none">▾</span>
-            <div class="url-dropdown" id="url-dropdown" style="display:none"></div>
-        </div>
-    </div>
-
-    <div class="gh-window">
-        <!-- Tab bar — profile tabs shown by default, repo tabs toggled by JS -->
-        <div class="preview-tab-bar">
-            <button class="preview-tab active" data-tab="readme"    id="tab-readme">Profile README</button>
-            <button class="preview-tab"         data-tab="insights" id="tab-insights">Developer Insights</button>
-            <button class="preview-tab"         data-tab="score"    id="tab-score"    style="display:none">Repo Analysis</button>
-        </div>
-
-        <!-- Profile README tab -->
-        <div class="preview-tab-content active" id="preview-tab-readme">
-            <!-- Loading while /preview-readme generates -->
-            <div class="insights-gate" id="preview-loading" style="display:none">
-                <div class="loading-dots" style="margin-bottom:10px">Generating preview<span>.</span><span>.</span><span>.</span></div>
-                <p style="font-size:12px;color:var(--gh-muted)">Fetching repos, computing rating, and calling Gemini AI.<br>Takes 30–60 seconds. Subsequent loads are instant.</p>
-                <p id="preview-load-error" style="font-size:12px;color:var(--red);margin-top:10px;display:none"></p>
+        <div class="gh-browser">
+            <div class="gh-dots">
+                <div class="gh-dot"></div><div class="gh-dot"></div><div class="gh-dot"></div>
             </div>
-            <!-- Authenticated component canvas -->
-            <div class="gh-render" id="profile-canvas" style="display:none"></div>
-            <!-- Unauthenticated demo -->
-            <div class="gh-render" id="preview-demo">
-                <p id="preview-bio-demo" style="margin-bottom:24px;color:var(--gh-muted);font-style:italic">Loading bio…</p>
-                <div class="img-loading" id="preview-rating-ph-demo">Loading developer rating…</div>
-                <img id="preview-rating-demo" src="/developer-rating" alt="Developer Rating"
-                     style="display:none;width:100%;border-radius:4px;margin-bottom:16px" />
-                <div class="img-loading" id="preview-tech-ph-demo">Loading tech stack…</div>
-                <img id="preview-tech-demo" src="" alt="Tech Stack"
-                     style="display:none;width:100%;border-radius:4px;margin-bottom:16px" />
-                <div class="profile-badges" id="preview-badges-demo"></div>
+            <div class="gh-url-wrapper">
+                <div class="gh-url" id="preview-url">github.com/kevinthelago/kevinthelago</div>
+                <span class="gh-url-caret" id="url-caret" style="display:none">▾</span>
+                <div class="url-dropdown" id="url-dropdown" style="display:none"></div>
             </div>
         </div>
 
-        <!-- Developer Insights tab -->
-        <div class="preview-tab-content" id="preview-tab-insights">
-            <div class="insights-gate" id="insights-gate">
-                <p>Your full developer score breakdown with AI recommendations.<br>Loads instantly once the profile preview above has finished.</p>
-                <button class="btn-sm" id="load-insights-btn">Show Developer Insights</button>
-                <p style="font-size:12px;color:var(--red);margin-top:8px;display:none" id="insights-error"></p>
+        <div class="gh-window">
+            <div class="preview-tab-bar">
+                <button class="preview-tab active" data-tab="readme"    id="tab-readme">Profile README</button>
+                <button class="preview-tab"         data-tab="insights" id="tab-insights">Developer Insights</button>
+                <button class="preview-tab"         data-tab="score"    id="tab-score"    style="display:none">Repo Analysis</button>
             </div>
-            <div class="insights-loading" id="insights-loading">
-                <div class="loading-dots">Generating insights<span>.</span><span>.</span><span>.</span></div>
-            </div>
-            <div class="gh-render" id="insights-body" style="display:none"></div>
-        </div>
 
-        <!-- Repo analysis tab (shown when a non-profile repo is selected) -->
-        <div class="preview-tab-content" id="preview-tab-score">
-            <div id="repo-scan-loading" class="insights-gate" style="display:none">
-                <div class="loading-dots">Scanning repository<span>.</span><span>.</span><span>.</span></div>
-                <p style="font-size:12px;color:var(--gh-muted);margin-top:8px">Reading file tree, config files, and source samples…</p>
-                <p id="repo-error" style="font-size:12px;color:var(--red);margin-top:8px;display:none"></p>
+            <!-- Profile README tab -->
+            <div class="preview-tab-content active" id="preview-tab-readme">
+                <div class="insights-gate" id="preview-loading" style="display:none">
+                    <div class="loading-dots" style="margin-bottom:10px">Generating preview<span>.</span><span>.</span><span>.</span></div>
+                    <p style="font-size:12px">Fetching repos, computing rating, and calling Gemini AI.<br>Takes 30–60 seconds. Subsequent loads are instant.</p>
+                    <p id="preview-load-error" style="font-size:12px;color:var(--danger);margin-top:10px;display:none"></p>
+                </div>
+                <div class="gh-render" id="profile-canvas" style="display:none"></div>
+                <div class="gh-render" id="preview-demo">
+                    <p id="preview-bio-demo" style="margin-bottom:24px;color:var(--gh-muted);font-style:italic">Loading bio…</p>
+                    <div class="img-loading" id="preview-rating-ph-demo">Loading developer rating…</div>
+                    <img id="preview-rating-demo" src="/developer-rating" alt="Developer Rating"
+                         style="display:none;width:100%;border-radius:4px;margin-bottom:16px" />
+                    <div class="img-loading" id="preview-tech-ph-demo">Loading tech stack…</div>
+                    <img id="preview-tech-demo" src="" alt="Tech Stack"
+                         style="display:none;width:100%;border-radius:4px;margin-bottom:16px" />
+                    <div class="profile-badges" id="preview-badges-demo"></div>
+                </div>
             </div>
-            <div class="gh-render" id="repo-canvas"></div>
+
+            <!-- Developer Insights tab -->
+            <div class="preview-tab-content" id="preview-tab-insights">
+                <div class="insights-gate" id="insights-gate">
+                    <p>Your full developer score breakdown with AI recommendations.<br>Loads instantly once the profile preview above has finished.</p>
+                    <button class="btn-sm" id="load-insights-btn">Show Developer Insights</button>
+                    <p style="font-size:12px;color:var(--danger);margin-top:8px;display:none" id="insights-error"></p>
+                </div>
+                <div class="insights-loading" id="insights-loading">
+                    <div class="loading-dots">Generating insights<span>.</span><span>.</span><span>.</span></div>
+                </div>
+                <div class="gh-render" id="insights-body" style="display:none"></div>
+            </div>
+
+            <!-- Repo analysis tab -->
+            <div class="preview-tab-content" id="preview-tab-score">
+                <div id="repo-scan-loading" class="insights-gate" style="display:none">
+                    <div class="loading-dots">Scanning repository<span>.</span><span>.</span><span>.</span></div>
+                    <p style="font-size:12px;margin-top:8px">Reading file tree, config files, and source samples…</p>
+                    <p id="repo-error" style="font-size:12px;color:var(--danger);margin-top:8px;display:none"></p>
+                </div>
+                <div class="gh-render" id="repo-canvas"></div>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- ── Apply section (authenticated only) ────────────────────────────────────── -->
-<div class="section apply-section" id="apply-section" style="display:none">
-    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-primary" id="apply-btn-2" style="font-size:15px;padding:13px 32px" disabled>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-            Apply to Profile
-        </button>
-        <!-- Repo-mode controls (hidden until a non-profile repo is selected) -->
-        <label id="readme-toggle-label" style="display:none;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer">
-            <input type="checkbox" id="readme-toggle" style="accent-color:var(--accent);width:14px;height:14px" />
-            Also generate README.md
-        </label>
-    </div>
-    <p class="apply-msg" id="apply-msg"></p>
-    <div class="apply-log" id="apply-log"></div>
-    <div id="schedule-note" style="display:none;margin-top:16px;padding:14px 18px;background:var(--gh-bg2);border:1px solid var(--gh-border);border-radius:8px;font-size:13px;line-height:1.6">
-        <strong>Activate daily auto-updates</strong><br>
-        A GitHub Actions workflow was pushed to your profile repo. Add a <code>GH_PAT</code> secret
-        (a classic PAT with <code>repo</code> scope) to run it on a daily schedule automatically.<br>
-        <a id="schedule-link" href="#" target="_blank" rel="noopener"
-           style="display:inline-block;margin-top:8px;color:var(--accent)">Add GH_PAT secret →</a>
+<div id="apply-section" style="display:none">
+    <div class="container apply-section">
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-primary" id="apply-btn-2" style="font-size:15px;height:46px;padding:0 28px" disabled>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                Apply to Profile
+            </button>
+            <label id="readme-toggle-label" style="display:none;align-items:center;gap:8px;font-size:13px;color:var(--text-3);cursor:pointer">
+                <input type="checkbox" id="readme-toggle" style="accent-color:var(--accent);width:14px;height:14px" />
+                Also generate README.md
+            </label>
+        </div>
+        <p class="apply-msg" id="apply-msg"></p>
+        <div class="apply-log" id="apply-log"></div>
+        <div id="schedule-note" style="display:none;margin-top:16px;padding:14px 18px;background:var(--bg-elev);border:1px solid var(--border);border-radius:8px;font-size:13px;line-height:1.6">
+            <strong>Activate daily auto-updates</strong><br>
+            A GitHub Actions workflow was pushed to your profile repo. Add a
+            <code style="background:color-mix(in oklch,var(--accent) 12%,transparent);border-radius:4px;padding:1px 5px;font-family:var(--font-mono);font-size:12px;color:var(--accent-ink)">GH_PAT</code>
+            secret (a classic PAT with
+            <code style="background:color-mix(in oklch,var(--accent) 12%,transparent);border-radius:4px;padding:1px 5px;font-family:var(--font-mono);font-size:12px;color:var(--accent-ink)">repo</code>
+            scope) to run it on a daily schedule automatically.<br>
+            <a id="schedule-link" href="#" target="_blank" rel="noopener"
+               style="display:inline-block;margin-top:8px;color:var(--accent-ink)">Add GH_PAT secret →</a>
+        </div>
     </div>
 </div>
 
-<!-- ── Settings (authenticated only) ───────────────────────────────────────── -->
-<div class="section" id="settings-section" style="display:none">
-    <p class="section-label">Settings</p>
-    <div class="cards-grid">
-
-        <!-- Monkeytype -->
-        <div class="card">
-            <div class="card-title">
-                Typing Speed
-                <span class="mt-status" id="mt-status" style="display:none">✓ Connected</span>
-            </div>
-            <p class="card-desc">Show your Monkeytype personal bests in your profile README.</p>
-            <div id="mt-connect-form">
-                <div class="mt-field">
-                    <label for="mt-key">Ape Key <span style="font-weight:400">(monkeytype.com/settings)</span></label>
-                    <input id="mt-key" type="password" placeholder="paste your Ape Key…" />
+<!-- ── Settings (authenticated only) ─────────────────────────────────────────── -->
+<div id="settings-section" style="display:none">
+    <div class="container">
+        <p class="kicker" style="margin-bottom:16px">Settings</p>
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-title">
+                    Typing Speed
+                    <span class="mt-status" id="mt-status" style="display:none">✓ Connected</span>
                 </div>
-                <div class="mt-field">
-                    <label for="mt-user">Username <span style="font-weight:400">(optional)</span></label>
-                    <input id="mt-user" type="text" placeholder="your Monkeytype username" />
+                <p class="card-desc">Show your Monkeytype personal bests in your profile README.</p>
+                <div id="mt-connect-form">
+                    <div class="mt-field">
+                        <label for="mt-key">Ape Key <span style="font-weight:400">(monkeytype.com/settings)</span></label>
+                        <input id="mt-key" type="password" placeholder="paste your Ape Key…" />
+                    </div>
+                    <div class="mt-field">
+                        <label for="mt-user">Username <span style="font-weight:400">(optional)</span></label>
+                        <input id="mt-user" type="text" placeholder="your Monkeytype username" />
+                    </div>
+                    <button class="btn-sm" id="mt-save" style="margin-top:4px">Connect</button>
+                    <p class="inline-error" id="mt-error"></p>
                 </div>
-                <button class="btn-sm" id="mt-save" style="margin-top:4px">Connect</button>
-                <p class="inline-error" id="mt-error"></p>
-            </div>
-            <div id="mt-connected" style="display:none">
-                <p style="font-size:13px;color:var(--muted);margin-bottom:10px" id="mt-connected-label">Monkeytype connected.</p>
-                <button class="btn-sm" id="mt-disconnect">Disconnect</button>
+                <div id="mt-connected" style="display:none">
+                    <p style="font-size:13px;color:var(--text-3);margin-bottom:10px" id="mt-connected-label">Monkeytype connected.</p>
+                    <button class="btn-sm" id="mt-disconnect">Disconnect</button>
+                </div>
             </div>
         </div>
-
     </div>
 </div>
 
+</main>
+
 <footer>
-    Built by <a href="https://github.com/kevinthelago" target="_blank">kevinthelago</a> ·
-    <a href="https://github.com/kevinthelago/github-pretty-readme" target="_blank">github-pretty-readme</a>
+    <div class="container footer-inner">
+        <div class="footer-small">
+            MIT · built by <a href="https://github.com/kevinthelago" target="_blank">kevinthelago</a> · deployed on Cloud Run
+        </div>
+        <div class="footer-links">
+            <a href="https://github.com/kevinthelago/github-pretty-readme" target="_blank">source</a>
+            <a href="https://github.com/kevinthelago/github-pretty-readme#api-endpoints" target="_blank">api</a>
+        </div>
+    </div>
 </footer>
 
 <script>
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+let _theme = 'system';
+document.getElementById('theme-toggle').addEventListener('click', () => {
+    const order = ['light', 'system', 'dark'];
+    _theme = order[(order.indexOf(_theme) + 1) % order.length];
+    if (_theme === 'system') {
+        document.documentElement.removeAttribute('data-theme');
+    } else {
+        document.documentElement.setAttribute('data-theme', _theme);
+    }
+    document.getElementById('theme-toggle').dataset.mode = _theme;
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const svgDataUri = (svg) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 const renderMd   = (md)  => typeof marked !== 'undefined'
@@ -530,7 +807,7 @@ document.querySelectorAll('.preview-tab').forEach(tab => {
         activateTab(tab.dataset.tab);
         const u = window._authUser;
         if (!u) return;
-        const repo = window._selectedRepo;
+        const repo  = window._selectedRepo;
         const urlEl = document.getElementById('preview-url');
         if (repo) {
             urlEl.textContent = `github.com/${u}/${repo}/blob/main/SCORE.md`;
@@ -578,7 +855,6 @@ fetch('/tech-list?sort=frequency').then(r => r.json()).then(techs => {
 }).catch(() => {});
 
 // ── Component canvas system ───────────────────────────────────────────────────
-
 const PROFILE_DEFS = [
     { id: 'bio',        label: 'Bio' },
     { id: 'rating',     label: 'Developer Rating' },
@@ -586,7 +862,6 @@ const PROFILE_DEFS = [
     { id: 'tech',       label: 'Tech Grid' },
     { id: 'badges',     label: 'Language Badges' },
 ];
-
 const REPO_DEFS = [
     { id: 'grade',       label: 'Quality Grade' },
     { id: 'dims',        label: 'Dimension Scores' },
@@ -601,7 +876,7 @@ let repoOrder     = REPO_DEFS.map(d => d.id);
 let repoHidden    = new Set();
 let dragSrcId    = null;
 let dragCanvasId = null;
-let badgesHtml   = null; // pre-fetched badge HTML
+let badgesHtml   = null;
 
 const loadBadges = () =>
     fetch('/tech-list?sort=frequency').then(r => r.json()).then(techs => {
@@ -656,7 +931,6 @@ const buildCanvas = (canvasEl, defs, order, hidden, renderFn) => {
         if (!def) continue;
         const body = renderFn(id);
         if (body === null) continue;
-
         const wrap = document.createElement('div');
         wrap.className  = 'c-wrap';
         wrap.dataset.id = id;
@@ -673,7 +947,6 @@ const buildCanvas = (canvasEl, defs, order, hidden, renderFn) => {
         attachDrag(wrap, canvasEl, order, hidden, defs, renderFn);
         canvasEl.appendChild(wrap);
     }
-
     const available = defs.filter(d => hidden.has(d.id) && renderFn(d.id) !== null);
     if (available.length) {
         const addRow = document.createElement('div');
@@ -692,7 +965,7 @@ const buildCanvas = (canvasEl, defs, order, hidden, renderFn) => {
                 const rid = item.dataset.id;
                 hidden.delete(rid);
                 if (!order.includes(rid)) {
-                    const origIdx = defs.findIndex(d => d.id === rid);
+                    const origIdx  = defs.findIndex(d => d.id === rid);
                     const insertAt = order.reduce((pos, oid) => {
                         const oi = defs.findIndex(d => d.id === oid);
                         return oi < origIdx ? order.indexOf(oid) + 1 : pos;
@@ -715,9 +988,9 @@ const insightsBody    = document.getElementById('insights-body');
 const insightsError   = document.getElementById('insights-error');
 
 const renderInsights = (md) => {
-    insightsBody.innerHTML  = renderMd(md);
-    insightsBody.style.display  = 'block';
-    insightsGate.style.display  = 'none';
+    insightsBody.innerHTML        = renderMd(md);
+    insightsBody.style.display    = 'block';
+    insightsGate.style.display    = 'none';
     insightsLoading.style.display = 'none';
     insightsLoaded = true;
 };
@@ -744,7 +1017,7 @@ document.getElementById('load-insights-btn').addEventListener('click', async () 
 const urlParams = new URLSearchParams(location.search);
 if (urlParams.get('error')) {
     const p = document.createElement('p');
-    p.style.cssText = 'color:var(--red);font-size:13px;margin-top:12px;text-align:center';
+    p.style.cssText = 'color:var(--danger);font-size:13px;margin-top:12px;text-align:center';
     p.textContent = 'GitHub sign-in failed: ' + decodeURIComponent(urlParams.get('error'));
     document.getElementById('cta-row').after(p);
 }
@@ -754,7 +1027,7 @@ const applyLog      = document.getElementById('apply-log');
 const applyMsg      = document.getElementById('apply-msg');
 let   applyRunning  = false;
 const REPO_FEAT_IDS = ['score', 'readme', 'topics', 'descriptions'];
-let   selectedFeats = new Set(['profile']); // initialised here, populated post-auth
+let   selectedFeats = new Set(['profile']);
 
 const runApply = async (allBtns) => {
     if (applyRunning) return;
@@ -776,7 +1049,6 @@ const runApply = async (allBtns) => {
     };
 
     if (repo && !hasRepoFeat) {
-        // ── Single-repo apply (URL switcher) ─────────────────────────────────
         const generateReadme = document.getElementById('readme-toggle').checked;
         applyMsg.textContent   = `Applying to ${repo}…`;
         applyMsg.style.display = 'block';
@@ -793,17 +1065,13 @@ const runApply = async (allBtns) => {
             applyMsg.className   = 'apply-msg error';
             applyLog.innerHTML  += `<div class="err">✗ ${err.message}</div>`;
         }
-
     } else if (hasRepoFeat) {
-        // ── Apply all repos ───────────────────────────────────────────────────
         const params = new URLSearchParams();
         if (selectedFeats.has('score'))        params.set('score',        'true');
         if (selectedFeats.has('readme'))       params.set('readme',       'true');
         if (selectedFeats.has('topics'))       params.set('topics',       'true');
         if (selectedFeats.has('descriptions')) params.set('descriptions', 'true');
-        // Always include profile when profile is in the selected set
         const alsoProfile = selectedFeats.has('profile');
-
         applyMsg.textContent   = 'Running bulk operations across all repositories…';
         applyMsg.style.display = 'block';
         try {
@@ -813,10 +1081,7 @@ const runApply = async (allBtns) => {
             ]);
             const allData     = allRes.value;
             const profileData = profileRes.value;
-            const combined    = [
-                ...(allData?.steps       ?? []),
-                ...(profileData?.steps   ?? []),
-            ];
+            const combined    = [...(allData?.steps ?? []), ...(profileData?.steps ?? [])];
             showSteps(combined);
             if (allData?.ok || profileData?.ok) {
                 applyMsg.textContent = `✓ Done — ${combined.filter(s => s.includes('✓')).length} operations applied.`;
@@ -838,9 +1103,7 @@ const runApply = async (allBtns) => {
             applyMsg.className   = 'apply-msg error';
             applyLog.innerHTML  += `<div class="err">✗ ${err.message}</div>`;
         }
-
     } else {
-        // ── Profile only ──────────────────────────────────────────────────────
         applyMsg.textContent   = 'Generating and pushing to GitHub…';
         applyMsg.style.display = 'block';
         try {
@@ -872,38 +1135,33 @@ const runApply = async (allBtns) => {
 fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
     if (!me) return;
     window._authUser     = me.username;
-    window._selectedRepo = null; // null = profile repo
+    window._selectedRepo = null;
 
-    // Hide demo, show loading
     document.getElementById('preview-demo').style.display    = 'none';
     document.getElementById('preview-loading').style.display = 'block';
 
-    // Nav
-    document.getElementById('nav-user').style.display   = 'flex';
-    document.getElementById('nav-avatar').src            = me.avatar;
-    document.getElementById('nav-username').textContent  = '@' + me.username;
+    document.getElementById('nav-user').style.display  = 'flex';
+    document.getElementById('nav-avatar').src           = me.avatar;
+    document.getElementById('nav-username').textContent = '@' + me.username;
 
-    // URL bar
     document.getElementById('preview-url').textContent = `github.com/${me.username}/${me.username}`;
     document.getElementById('url-caret').style.display = 'inline';
     document.getElementById('preview-url').classList.add('clickable');
 
-    // Hero CTA
-    const ghPath = `M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z`;
+    const ghPath   = `M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z`;
     const applyBtn1 = document.createElement('button');
-    applyBtn1.className = 'btn btn-primary';
+    applyBtn1.className = 'btn btn-primary btn-lg';
     applyBtn1.disabled  = true;
     applyBtn1.id        = 'apply-btn-1';
     applyBtn1.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="${ghPath}"/></svg> Apply to Profile`;
     const disconnectA = document.createElement('a');
-    disconnectA.href = '/auth/logout';
-    disconnectA.className = 'btn btn-secondary';
+    disconnectA.href      = '/auth/logout';
+    disconnectA.className = 'btn btn-ghost btn-lg';
     disconnectA.textContent = 'Disconnect';
     const ctaRow = document.getElementById('cta-row');
     ctaRow.innerHTML = '';
     ctaRow.append(applyBtn1, disconnectA);
 
-    // Show apply + settings sections
     document.getElementById('apply-section').style.display    = 'block';
     document.getElementById('settings-section').style.display = 'block';
 
@@ -912,7 +1170,7 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
     applyBtn1.addEventListener('click', () => runApply(allApplyBtns));
     applyBtn2.addEventListener('click', () => runApply(allApplyBtns));
 
-    // ── Feature selector ──────────────────────────────────────────────────────
+    // Feature selector
     const featureGrid = document.getElementById('feature-grid');
     featureGrid.classList.add('interactive');
 
@@ -936,16 +1194,15 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         });
     });
 
-    // ── Profile preview ───────────────────────────────────────────────────────
-    const loadingEl    = document.getElementById('preview-loading');
-    const loadErrEl    = document.getElementById('preview-load-error');
+    // Profile preview
+    const loadingEl     = document.getElementById('preview-loading');
+    const loadErrEl     = document.getElementById('preview-load-error');
     const profileCanvas = document.getElementById('profile-canvas');
 
     const buildProfileCanvas = (data) => {
         window._previewData = data;
         const u = me.username;
         const insightsUrl = `https://github.com/${u}/${u}/blob/main/DEVELOPER_INSIGHTS.md`;
-
         const renderFn = (id) => {
             switch (id) {
                 case 'bio':
@@ -960,11 +1217,10 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
                     if (!data.techGridSvg) return null;
                     return `<img src="${svgDataUri(data.techGridSvg)}" style="width:100%;border-radius:4px;display:block" alt="Tech Grid"/>`;
                 case 'badges':
-                    return `<div class="profile-badges">${badgesHtml ?? '<span style="color:var(--muted);font-size:12px">Loading badges…</span>'}</div>`;
+                    return `<div class="profile-badges">${badgesHtml ?? '<span style="color:var(--text-3);font-size:12px">Loading badges…</span>'}</div>`;
                 default: return '';
             }
         };
-
         buildCanvas(profileCanvas, PROFILE_DEFS, profileOrder, profileHidden, renderFn);
     };
 
@@ -972,7 +1228,7 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         profileOrder  = PROFILE_DEFS.map(d => d.id);
         profileHidden = new Set();
         buildProfileCanvas(data);
-        loadingEl.style.display    = 'none';
+        loadingEl.style.display     = 'none';
         profileCanvas.style.display = 'block';
         if (data.insightsMd) {
             window._insightsMd = data.insightsMd;
@@ -1004,9 +1260,9 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
 
     fetchPreview();
 
-    // ── URL dropdown — repo switcher ──────────────────────────────────────────
-    const urlEl      = document.getElementById('preview-url');
-    const dropdown   = document.getElementById('url-dropdown');
+    // URL dropdown — repo switcher
+    const urlEl    = document.getElementById('preview-url');
+    const dropdown = document.getElementById('url-dropdown');
 
     const setProfileMode = () => {
         window._selectedRepo = null;
@@ -1020,7 +1276,6 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         document.getElementById('schedule-note').style.display        = 'none';
         applyMsg.style.display = 'none';
         applyLog.style.display = 'none';
-        // Re-enable based on preview readiness
         const previewReady = profileCanvas.style.display !== 'none';
         allApplyBtns.forEach(b => { b.disabled = !previewReady; });
     };
@@ -1029,7 +1284,6 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         const { codeQuality, suggestions, techStack, summary, readmeOutline } = data;
         repoOrder  = REPO_DEFS.map(d => d.id);
         repoHidden = new Set();
-
         const renderFn = (id) => {
             switch (id) {
                 case 'grade': {
@@ -1093,7 +1347,6 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
                 default: return '';
             }
         };
-
         const canvasEl = document.getElementById('repo-canvas');
         buildCanvas(canvasEl, REPO_DEFS, repoOrder, repoHidden, renderFn);
     };
@@ -1101,12 +1354,10 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
     const setRepoMode = async (repoName) => {
         window._selectedRepo = repoName;
         urlEl.textContent    = `github.com/${me.username}/${repoName}/blob/main/SCORE.md`;
-
         document.getElementById('tab-readme').style.display   = 'none';
         document.getElementById('tab-insights').style.display = 'none';
         document.getElementById('tab-score').style.display    = '';
         activateTab('score');
-
         allApplyBtns.forEach(b => { b.disabled = true; });
         syncApplyLabel();
         document.getElementById('readme-toggle-label').style.display = 'flex';
@@ -1117,9 +1368,9 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         const scanLoading = document.getElementById('repo-scan-loading');
         const repoCanvas  = document.getElementById('repo-canvas');
         const repoError   = document.getElementById('repo-error');
-        repoCanvas.innerHTML       = '';
-        scanLoading.style.display  = 'block';
-        repoError.style.display    = 'none';
+        repoCanvas.innerHTML      = '';
+        scanLoading.style.display = 'block';
+        repoError.style.display   = 'none';
 
         try {
             const r    = await fetch(`/repo-scan?repo=${encodeURIComponent(repoName)}`);
@@ -1128,8 +1379,6 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
             scanLoading.style.display = 'none';
             buildRepoCanvas(data, repoName);
             allApplyBtns.forEach(b => { b.disabled = false; });
-
-            // Silently refresh profile preview so code quality appears in the rating tile
             fetch('/preview-readme?refresh=true').then(r => r.json()).then(pd => {
                 if (!pd?.ok) return;
                 window._previewData = pd;
@@ -1145,7 +1394,6 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         }
     };
 
-    // Fetch repo list and build dropdown
     fetch('/repos').then(r => r.json()).then(repoList => {
         dropdown.innerHTML = repoList.map(r => `
             <div class="url-item ${r.isProfile ? 'url-item-profile' : ''}" data-repo="${r.isProfile ? '' : r.name}">
@@ -1153,7 +1401,6 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
                 ${r.description ? `<span class="url-item-desc">${r.description}</span>` : ''}
             </div>
         `).join('');
-
         dropdown.querySelectorAll('.url-item').forEach(item => {
             item.addEventListener('click', () => {
                 dropdown.style.display = 'none';
@@ -1164,7 +1411,6 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         });
     }).catch(() => {});
 
-    // Toggle dropdown
     urlEl.addEventListener('click', () => {
         dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
     });
@@ -1172,7 +1418,7 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         if (!e.target.closest('.gh-url-wrapper')) dropdown.style.display = 'none';
     });
 
-    // ── Monkeytype ────────────────────────────────────────────────────────────
+    // Monkeytype
     const mtStatus    = document.getElementById('mt-status');
     const mtForm      = document.getElementById('mt-connect-form');
     const mtConnected = document.getElementById('mt-connected');
@@ -1206,8 +1452,8 @@ fetch('/auth/me').then(r => r.ok ? r.json() : null).then(me => {
         fetchPreview(true);
     });
 
-
 }).catch(() => {});
 </script>
 </body>
+</html>
 </html>

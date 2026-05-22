@@ -1,125 +1,350 @@
 # github-pretty-readme
 
-[![CI](https://github.com/kevinthelago/github-pretty-readme/actions/workflows/cicd.yml/badge.svg)](https://github.com/kevinthelago/github-pretty-readme/actions/workflows/cicd.yml)
-[![Node 22](https://img.shields.io/badge/node-22-brightgreen?logo=node.js&logoColor=white)](https://nodejs.org)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](#)
-[![Live](https://img.shields.io/badge/live-Cloud%20Run-4285F4?logo=googlecloud&logoColor=white)](https://github-pretty-readme-357245595112.us-central1.run.app)
+`github-pretty-readme` is a Node.js/Express API that generates dynamic, styled SVG graphics and Markdown content for GitHub profile READMEs. It integrates with the GitHub API to fetch user and repository data, uses AI for personalized summaries and recommendations, and can optionally pull typing statistics from Monkeytype. The generated content, including developer ratings, tech stack visualizations, and AI-driven insights, can be embedded directly into markdown files or used to update your GitHub profile repository.
 
-A Node.js/Express service that generates styled SVG graphics and markdown content for GitHub profile READMEs. Fetches your repos, scores your developer profile across five dimensions, renders spider charts per tech category, and pushes everything to your profile repo automatically.
+## Environment Variables
 
-Architecturally similar to [github-readme-stats](https://github.com/anuraghazra/github-readme-stats).
+The application relies on several environment variables for configuration and API keys.
 
----
+| Name                        | Purpose                                                                                                 | Required                       |
+| :-------------------------- | :------------------------------------------------------------------------------------------------------ | :----------------------------- |
+| `SESSION_SECRET`            | Secret key used by `express-session` for signing the session ID cookie.                                 | Yes (has dev default)          |
+| `NODE_ENV`                  | Determines if session cookies should be secure (HTTPS only). Set to `production` for secure cookies.    | No (defaults to `development`) |
+| `PORT` or `port`            | The port on which the Express server will listen.                                                       | No (defaults to `8080`)        |
+| `GOOGLE_AI_STUDIO_KEY`      | API key for Google's Generative AI Studio (Gemini model) for AI-powered features.                       | Yes (for AI features)          |
+| `GITHUB_TOKEN`              | GitHub Personal Access Token used for accessing GitHub API data without user authentication (fallback). | No (recommended for public API access) |
+| `GITHUB_APP_CLIENT_ID`      | Client ID for your GitHub OAuth App, used for user authentication.                                      | Yes (for GitHub OAuth)         |
+| `GITHUB_APP_CLIENT_SECRET`  | Client Secret for your GitHub OAuth App, used for user authentication.                                  | Yes (for GitHub OAuth)         |
+| `BASE_URL`                  | The base URL for OAuth callbacks. Should match your deployed application URL.                           | No (defaults to `http://localhost:8080`) |
+| `MONKEYTYPE_API_KEY`        | Monkeytype API key for fetching typing statistics (fallback).                                           | No (can be set per-session)    |
+| `MONKEYTYPE_USERNAME`       | Monkeytype username (for linking, fallback).                                                            | No (can be set per-session)    |
 
-## Setup
+## Running Locally
 
-### 1. Environment variables
+To run the server locally:
 
-Create a `.env` file at the project root:
+1.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+2.  **Set environment variables:** Create a `.env` file in the project root with the necessary variables.
+3.  **Start the server:**
+    ```bash
+    npm start
+    ```
+    The server will start on the port specified in `PORT` or `8080` by default.
 
-```env
-GITHUB_TOKEN=ghp_...            # Fine-grained PAT — read all repos, write topics/descriptions
-PROFILE_REPO_TOKEN=ghp_...      # Fine-grained PAT — write to your profile repo (can be the same token)
-GOOGLE_AI_STUDIO_KEY=...        # Google Gemini API key
-```
-
-**Required token permissions (fine-grained):**
-- Resource owner: your account
-- Repository access: All repositories
-- Permissions: `Contents` → Read & Write, `Administration` → Read & Write
-
-### 2. Install dependencies
-
-```bash
-npm install
-```
-
----
-
-## Commands
-
-### Start the server
+To generate a set of example SVG tiles to the `preview/` directory, configure `preview.config.js` and run:
 
 ```bash
-npm start
+npm run preview
 ```
 
-Starts the Express server on `http://localhost:8080` (or `$port`).
+## Endpoints
 
----
+This section describes the API endpoints, their purpose, accepted query parameters, and examples. Most SVG/data endpoints can be used without user authentication if `GITHUB_TOKEN` is set in your environment, otherwise, they require an authenticated user session. Endpoints that modify GitHub data *always* require an authenticated user session.
 
-### Update your profile README
+### Authentication Endpoints
 
-Fetches fresh data from GitHub + Gemini, pushes SVGs and markdown to your profile repo (`<username>/<username>`).
+These endpoints manage user authentication via GitHub OAuth.
 
+#### GET /auth/github
+
+Initiates the GitHub OAuth flow. Redirects the user to GitHub for authorization.
+
+**Query Parameters:** None.
+
+**Example URL:**
+```
+http://localhost:8080/auth/github
+```
+
+#### GET /auth/callback
+
+The callback URI for GitHub OAuth. Exchanges the authorization code for an access token and stores user information in the session.
+
+**Query Parameters:**
+
+| Name    | Default | Description                                 |
+| :------ | :------ | :------------------------------------------ |
+| `code`  |         | The authorization code provided by GitHub.  |
+| `state` |         | The OAuth state parameter for CSRF protection. |
+
+**Example URL:**
+```
+http://localhost:8080/auth/callback?code=YOUR_CODE&state=YOUR_STATE
+```
+
+#### GET /auth/logout
+
+Destroys the user's session, effectively logging them out.
+
+**Query Parameters:** None.
+
+**Example URL:**
+```
+http://localhost:8080/auth/logout
+```
+
+#### GET /auth/me
+
+Returns JSON data about the currently authenticated GitHub user. Requires an active session.
+
+**Query Parameters:** None.
+
+**Example URL:**
+```
+http://localhost:8080/auth/me
+```
+
+### Dashboard Endpoint
+
+#### GET /dashboard
+
+Renders the dashboard HTML page for authenticated users. Requires an active session.
+
+**Query Parameters:** None.
+
+**Example URL:**
+```
+http://localhost:8080/dashboard
+```
+
+### Profile Update Endpoint
+
+#### GET /apply-readme
+
+Generates and pushes various SVG graphics and markdown content to the user's GitHub profile README repository (`{username}/{username}`). This includes a developer bio, rating, tech stack charts, language badges, and a detailed insights markdown file. Requires an active session with `repo` scope.
+
+**Query Parameters:**
+
+| Name      | Default | Description                                                                                 |
+| :-------- | :------ | :------------------------------------------------------------------------------------------ |
+| `dry_run` | `false` | If `true`, the process runs without applying any changes to GitHub and returns the generated content. |
+
+**Example URL (Dry Run):**
+```
+http://localhost:8080/apply-readme?dry_run=true
+```
+
+### Monkeytype Connection Endpoints
+
+These endpoints manage the connection to the Monkeytype API.
+
+#### POST /monkeytype/connect
+
+Connects a Monkeytype API key to the user's session. This key is then used for `GET /monkeytype` and `/apply-readme`.
+
+**Request Body Parameters:**
+
+| Name       | Default | Description                            |
+| :--------- | :------ | :------------------------------------- |
+| `api_key`  |         | Your Monkeytype API key.               |
+| `username` | `null`  | Your Monkeytype username (optional, for linking). |
+
+**Example (using `curl`):**
 ```bash
-PROFILE_REPO_TOKEN=<token> port=8080 node scripts/update-profile.mjs <username>
+curl -X POST -H "Content-Type: application/json" -d '{"api_key": "YOUR_API_KEY", "username": "YourMTUsername"}' http://localhost:8080/monkeytype/connect
 ```
 
-**What it updates:**
-| Section | Description |
-|---|---|
-| Bio | 2–3 sentence Gemini-generated summary injected as markdown |
-| Developer rating | 800×280 SVG score card (Breadth, Depth, Diversity, Activity, Impact) |
-| Tech charts | Spider charts per category composited into a single grid SVG |
-| Badges | Clickable shields.io badges for every detected language/framework |
-| `DEVELOPER_INSIGHTS.md` | Actionable per-repo improvement steps pushed to the profile repo |
+#### POST /monkeytype/disconnect
 
----
+Removes the Monkeytype API key and username from the user's session.
 
-### Improve repo metadata
+**Request Body Parameters:** None.
 
-Fill in missing topics and descriptions across all your repos using Gemini.
-
+**Example (using `curl`):**
 ```bash
-# Preview changes without applying
-curl "http://localhost:8080/improve-topics?dry_run=true"
-curl "http://localhost:8080/improve-descriptions?dry_run=true"
-
-# Apply changes
-curl "http://localhost:8080/improve-topics"
-curl "http://localhost:8080/improve-descriptions"
+curl -X POST http://localhost:8080/monkeytype/disconnect
 ```
 
----
+### SVG / Data Endpoints
 
-## API endpoints
+These endpoints generate SVG images or JSON data based on GitHub and other API data.
 
-| Endpoint | Description |
-|---|---|
-| `GET /account-summary-md?username=` | Gemini-generated bio as plain markdown |
-| `GET /developer-rating` | SVG score card (overall + 5 dimensions) |
-| `GET /developer-rating-insights` | Full markdown insights report with per-repo action items |
-| `GET /tech-spider?type=&categories=&columns=&limit=` | Spider / treemap / cards / grid SVG |
-| `GET /tech-categories?limit=` | JSON list of detected tech categories with counts |
-| `GET /tech-list?sort=frequency` | JSON list of all techs with shields.io metadata |
-| `GET /improve-topics?dry_run=` | Suggest and apply topics to repos with fewer than 3 |
-| `GET /improve-descriptions?dry_run=` | Generate and apply descriptions to repos missing one |
+#### GET /account-summary
 
-### `/tech-spider` options
+Generates an SVG image displaying a developer account summary.
 
-| Param | Values | Default |
-|---|---|---|
-| `type` | `spider`, `treemap`, `cards`, `grid` | `spider` |
-| `categories` | `languages,frameworks,cloud,ai,databases,devops` | `languages,frameworks,cloud` |
-| `columns` | `1`–`4` | `2` |
-| `limit` | max techs per category | `6` |
-| `exclude` | comma-separated tech names to drop | — |
+**Query Parameters:**
 
----
+| Name         | Default | Description                                                                                 |
+| :----------- | :------ | :------------------------------------------------------------------------------------------ |
+| `username`   |         | (Required if not authenticated) The GitHub username to summarize.                           |
+| `background` | `null`  | Applies a background theme: `cherry-blossom`, `geometric`, or `vapor-wave`.                 |
+| `projects`   | `all`   | Filters repositories: a number (e.g., `5` for top 5 by stars) or a comma-separated list of repo names. |
 
-## Automation
-
-A GitHub Actions workflow runs daily at 5am UTC, improves repo metadata, and refreshes the profile README:
-
+**Example URLs:**
 ```
-.github/workflows/daily-improve.yml
+http://localhost:8080/account-summary?username=octocat&background=cherry-blossom
+http://localhost:8080/account-summary?username=octocat&projects=top5
+http://localhost:8080/account-summary?username=octocat&projects=my-repo-1,my-repo-2
 ```
 
-You can also trigger it manually from the Actions tab with optional `dry_run` and `passes` inputs.
+#### GET /account-summary-md
 
-**Required repository secrets:**
-- `GH_PAT` — token with repo read/write access
-- `PROFILE_REPO_TOKEN` — token with write access to your profile repo
-- `GOOGLE_AI_STUDIO_KEY` — Gemini API key
-- `AI_PROMPT` — prompt template (optional, used by legacy SVG summary endpoint)
+Generates a plain text developer bio summary based on the authenticated user's repositories.
+
+**Query Parameters:** None.
+
+**Example URL:**
+```
+http://localhost:8080/account-summary-md
+```
+
+#### GET /developer-rating
+
+Generates an SVG image displaying the developer rating for the authenticated user (or user associated with `GITHUB_TOKEN`).
+
+**Query Parameters:** None.
+
+**Example URL:**
+```
+http://localhost:8080/developer-rating
+```
+
+#### GET /developer-rating-insights
+
+Generates a detailed Markdown report with developer rating insights and actionable recommendations for the authenticated user (or user associated with `GITHUB_TOKEN`).
+
+**Query Parameters:** None.
+
+**Example URL:**
+```
+http://localhost:8080/developer-rating-insights
+```
+
+#### GET /tech-summary
+
+Generates an SVG image displaying a summary of the top technologies used by a user, represented by icons.
+
+**Query Parameters:**
+
+| Name         | Default | Description                                                                                 |
+| :----------- | :------ | :------------------------------------------------------------------------------------------ |
+| `background` | `null`  | Applies a background theme: `cherry-blossom`, `geometric`, or `vapor-wave`.                 |
+| `limit`      | `all`   | Maximum number of technology icons to display.                                              |
+| `sort`       | `frequency` | Sort order for technologies: `frequency` (most used) or `alpha` (alphabetical).             |
+| `exclude`    | `null`  | Comma-separated list of technology names to exclude from the summary (e.g., `HTML,CSS`). |
+
+**Example URLs:**
+```
+http://localhost:8080/tech-summary?background=geometric&limit=10&sort=frequency
+http://localhost:8080/tech-summary?background=vapor-wave&exclude=JavaScript,HTML
+```
+
+#### GET /tech-list
+
+Returns a JSON list of technologies used by the authenticated user (or user associated with `GITHUB_TOKEN`), including counts and icon metadata.
+
+**Query Parameters:**
+
+| Name      | Default     | Description                                                         |
+| :-------- | :---------- | :------------------------------------------------------------------ |
+| `sort`    | `frequency` | Sort order for technologies: `frequency` (most used) or `alpha` (alphabetical). |
+| `exclude` | `null`      | Comma-separated list of technology names to exclude.                |
+
+**Example URLs:**
+```
+http://localhost:8080/tech-list?sort=alpha
+http://localhost:8080/tech-list?exclude=CSS,Markdown
+```
+
+#### GET /tech-chart
+
+Generates an SVG chart visualizing programming language usage.
+
+**Query Parameters:**
+
+| Name    | Default | Description                                       |
+| :------ | :------ | :------------------------------------------------ |
+| `chart` | `donut` | Type of chart: `donut` (pie chart) or `spider` (radar chart). |
+
+**Example URLs:**
+```
+http://localhost:8080/tech-chart?chart=donut
+http://localhost:8080/tech-chart?chart=spider
+```
+
+#### GET /tech-spider
+
+Generates a technology visualization SVG. This versatile endpoint can render spider charts, treemaps, or a grid of technology cards.
+
+**Query Parameters:**
+
+| Name         | Default                          | Description                                                                                     |
+| :----------- | :------------------------------- | :---------------------------------------------------------------------------------------------- |
+| `type`       | `spider`                         | Visualization type: `spider`, `treemap`, `cards`, or `grid`.                                    |
+| `categories` | `languages,frameworks,cloud`     | Comma-separated list of tech category keys (e.g., `languages,frameworks,ai`).                   |
+| `limit`      | `6`                              | Maximum number of technologies to display per category.                                         |
+| `exclude`    | `null`                           | Comma-separated list of technology names to exclude.                                            |
+| `columns`    | `2`                              | (Only for `type=grid`) Number of columns in the grid layout (max 4).                            |
+| `title`      | `TECH RADAR` (for `spider` type) | Custom title for the visualization (not all types use this parameter).                          |
+
+**Example URLs:**
+```
+http://localhost:8080/tech-spider?type=spider&categories=languages,databases,devops&limit=5
+http://localhost:8080/tech-spider?type=treemap&categories=languages,frameworks,cloud&limit=8
+http://localhost:8080/tech-spider?type=cards&categories=languages,frameworks,ai,databases&limit=12
+http://localhost:8080/tech-spider?type=grid&categories=languages,frameworks,cloud,ai&columns=2
+```
+
+#### GET /tech-categories
+
+Returns a JSON list of technology categories that have at least one detected technology for the authenticated user (or user associated with `GITHUB_TOKEN`).
+
+**Query Parameters:**
+
+| Name    | Default | Description                                          |
+| :------ | :------ | :--------------------------------------------------- |
+| `limit` | `8`     | Maximum number of technologies per category to consider. |
+
+**Example URL:**
+```
+http://localhost:8080/tech-categories?limit=5
+```
+
+#### GET /improve-topics
+
+Uses AI to suggest and apply GitHub topics to repositories that have fewer than `MIN_TOPICS` (currently 3) topics, are not archived, and are not forks. Requires an active session with `repo` scope.
+
+**Query Parameters:**
+
+| Name      | Default | Description                                                                                 |
+| :-------- | :------ | :------------------------------------------------------------------------------------------ |
+| `dry_run` | `false` | If `true`, the process runs without applying any changes to GitHub and returns the suggested topics. |
+
+**Example URL (Dry Run):**
+```
+http://localhost:8080/improve-topics?dry_run=true
+```
+
+#### GET /improve-descriptions
+
+Uses AI to suggest and apply descriptions to owned GitHub repositories that currently lack them, are not archived, and are not forks. Requires an active session with `repo` scope.
+
+**Query Parameters:**
+
+| Name      | Default | Description                                                                                 |
+| :-------- | :------ | :------------------------------------------------------------------------------------------ |
+| `dry_run` | `false` | If `true`, the process runs without applying any changes to GitHub and returns the suggested descriptions. |
+
+**Example URL (Dry Run):**
+```
+http://localhost:8080/improve-descriptions?dry_run=true
+```
+
+#### GET /monkeytype
+
+Generates an SVG chart visualizing Monkeytype typing speed personal bests across different time modes. Requires an active session with a connected Monkeytype API key or `MONKEYTYPE_API_KEY` set in the environment.
+
+**Query Parameters:** None.
+
+**Example URL:**
+```
+http://localhost:8080/monkeytype
+```
+
+## Deployment
+
+The project is designed to be deployed with a GitHub Actions workflow that periodically generates and pushes updated SVG graphics to the user's GitHub profile repository on a cron schedule.

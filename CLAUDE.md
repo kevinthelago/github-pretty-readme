@@ -69,4 +69,4 @@ api/account-summary.js      ← endpoint handler, orchestrates the pipeline
 
 ## Deployment
 
-GitHub Actions (`.github/workflows/main_github-pretty-readme.yml`) deploys to an Azure Web App named **github-pretty-readme** on every push to `main`. Build: Node 22, `npm install`, zip artifacts. Deploy: OIDC auth to Azure, deploy to Production slot.
+Deployed to **Google Cloud Run**. Pushes to `main` trigger the production deploy via GitHub Actions. The service runs as a container on Cloud Run; `SESSION_SECRET` and other env vars are set as Cloud Run secrets/environment variables.
