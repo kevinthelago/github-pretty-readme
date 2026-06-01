@@ -116,6 +116,12 @@ Tests use **vitest** and live in `src/tests/` (`smoke.test.js`,
 `npm run lint` and check formatting with `npm run format:check`. CI
 (`.github/workflows/ci.yml`) runs these on pull requests.
 
+**Coverage thresholds** are enforced by `vitest.config.js` and gate CI: lines 55%,
+branches 75%, functions 60%, statements 55%. `npm run test:coverage` exits non-zero
+below any of these. They are a conservative *floor* set just under current coverage
+to protect in-flight work — raise them as streams land rather than letting coverage
+regress. Any change to these or to `ci.yml` is coordinated through the director.
+
 ## Incomplete / Stub Files
 
 - `api/repository-readme.js` — handler is a stub (per-repository README generation, not yet wired up)
