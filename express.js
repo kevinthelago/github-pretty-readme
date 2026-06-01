@@ -18,6 +18,7 @@ import applyReadme            from './api/apply-readme.js';
 import previewReadme          from './api/preview-readme.js';
 import contributionGraph       from './api/contribution-graph.js';
 import statsCard               from './api/stats-card.js';
+import repositoryReadme       from './api/repository-readme.js';
 import { getConfig, putConfig }                                      from './api/config.js';
 import { authGithub, authCallback, authLogout, authMe, requireAuth } from './api/auth.js';
 import { monkeytypeConnect, monkeytypeDisconnect }                   from './api/monkeytype-connect.js';
@@ -78,6 +79,7 @@ app.get('/repos',                    requireAuth, repos);
 app.get('/repo-apply',               requireAuth, repoApply);
 app.get('/apply-all',                requireAuth, applyAll);
 app.get('/monkeytype',               monkeytype);
+app.get('/repository-readme',        requireAuth, repositoryReadme);
 
 // account-graph stream (#38, #39) — manual append pending #52 auto-registration
 app.get('/contribution-graph',       contributionGraph);
