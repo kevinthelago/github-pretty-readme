@@ -27,6 +27,7 @@ export default async (req, res) => {
                 ratingSvg:     cached.ratingSvg,
                 techGridSvg:   cached.techGridSvg,
                 monkeytypeSvg: cached.monkeytypeSvg,
+                accountTiles:  cached.accountTiles ?? {},
                 insightsMd:    cached.insightsMd,
             });
         }
@@ -46,6 +47,7 @@ export default async (req, res) => {
             ratingSvg:     profile.ratingSvg,
             techGridSvg:   profile.techGridSvg,
             monkeytypeSvg: profile.monkeytypeSvg,
+            accountTiles:  profile.accountTiles ?? {},
             insightsMd:    profile.insightsMd,
         });
     } catch (err) {

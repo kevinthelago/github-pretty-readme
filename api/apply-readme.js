@@ -5,6 +5,10 @@ import { renderDeveloperRating }            from '../src/tiles/developer-rating.
 import { buildTechSeries, lookupIcon }      from '../src/github/tech-data.js';
 import { renderTechGrid }                   from '../src/tiles/tech-grid.js';
 import { renderMonkeytypeChart }            from '../src/tiles/monkeytype-chart.js';
+import { getContributionCalendar, getUserStats } from '../src/github/graphql.js';
+import { renderContributionGraph }          from '../src/tiles/contribution-graph.js';
+import { renderStatsCard }                  from '../src/tiles/stats-card.js';
+import { readConfig, resolveEnabledTiles }  from '../src/github/config.js';
 import { GoogleGenerativeAI }              from '@google/generative-ai';
 import { previewCache }                    from '../src/preview-cache.js';
 import { scanCache }                      from '../src/scan-cache.js';
@@ -398,6 +402,60 @@ const renderInsights = (rating, insights, repos, recommendations = '') => {
     return parts.join('\n');
 };
 
+// ── Optional account tiles (opt-in via .pretty-readme.json) ─────────────────────
+
+/**
+ * Builders for the opt-in account tiles, keyed by the canonical tile id used in
+ * `.pretty-readme.json`. Each builder fetches its data and returns an SVG
+ * string. Tiles whose components don't exist yet (languageTrend, socialLinks —
+ * #40/#41) are intentionally absent and are skipped gracefully until added.
+ */
+const ACCOUNT_TILE_BUILDERS = {
+    contributionGraph: async (token, username) =>
+        renderContributionGraph(await getContributionCalendar(token, username), undefined, { username }),
+    statsCard: async (token, username) =>
+        renderStatsCard(await getUserStats(token, username)),
+};
+
+/** Asset path + alt text per tile, used when injecting into the profile README. */
+const ACCOUNT_TILE_ASSETS = {
+    contributionGraph: { asset: 'assets/contribution-graph.svg', alt: 'Contribution Graph', marker: 'contribution' },
+    statsCard:         { asset: 'assets/stats-card.svg',         alt: 'GitHub Stats',       marker: 'stats' },
+};
+
+/**
+ * Read the user's `.pretty-readme.json`, resolve the enabled optional tiles, and
+ * render each one whose builder is available. Failures (config read, GraphQL,
+ * render) are logged and skipped so one tile never breaks the whole apply.
+ *
+ * @returns {Promise<Record<string,string>>} Map of enabled tile id → SVG string.
+ */
+export async function buildAccountTiles(token, username, log = () => {}) {
+    let enabled;
+    try {
+        const result = await readConfig(token, username);
+        enabled = resolveEnabledTiles(result?.config);
+    } catch (err) {
+        log(`Config read failed: ${err.message} (no optional tiles)`);
+        return {};
+    }
+
+    const tiles = {};
+    for (const key of enabled) {
+        const build = ACCOUNT_TILE_BUILDERS[key];
+        if (!build) {
+            log(`Tile "${key}" enabled but not yet implemented — skipping`);
+            continue;
+        }
+        try {
+            tiles[key] = await build(token, username);
+        } catch (err) {
+            log(`Tile "${key}" failed: ${err.message} (skipping)`);
+        }
+    }
+    return tiles;
+}
+
 // ── Core profile generator ────────────────────────────────────────────────────
 
 export async function generateProfile(token, username, monkeyOptions = {}, onProgress = null) {
@@ -480,6 +538,11 @@ export async function generateProfile(token, username, monkeyOptions = {}, onPro
         }
     }
 
+    emit(64, 'Rendering account tiles…');
+    log('Rendering opt-in account tiles…');
+    const accountTiles = await buildAccountTiles(token, username, log);
+    if (Object.keys(accountTiles).length) log(`Enabled account tiles: ${Object.keys(accountTiles).join(', ')}`);
+
     emit(68, 'Generating recommendations…');
     log('Generating personalised recommendations…');
     const recommendations = await generateRecommendations(repos, rating, insights);
@@ -488,7 +551,7 @@ export async function generateProfile(token, username, monkeyOptions = {}, onPro
     log('Rendering developer insights…');
     const insightsMd = renderInsights(rating, insights, repos, recommendations);
 
-    return { bio, ratingSvg, techGridSvg, gridCols, gridRows, badges, monkeytypeSvg, insightsMd, steps };
+    return { bio, ratingSvg, techGridSvg, gridCols, gridRows, badges, monkeytypeSvg, accountTiles, insightsMd, steps };
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
@@ -540,7 +603,7 @@ export default async (req, res) => {
         if (!cachedProfile) previewCache.set(username, profile);
 
         if (dryRun) {
-            const result = { ok: true, dry_run: true, steps: profile.steps, bio: profile.bio };
+            const result = { ok: true, dry_run: true, steps: profile.steps, bio: profile.bio, tiles: Object.keys(profile.accountTiles ?? {}) };
             if (send) { send({ type: 'done', ...result }); res.end(); } else { res.json(result); }
             return;
         }
@@ -556,6 +619,8 @@ export default async (req, res) => {
         const SECTIONS = [
             { key: 'summary',   start: '<!-- summary-start -->',     end: '<!-- summary-end -->' },
             { key: 'rating',    start: '<!-- rating-start -->',       end: '<!-- rating-end -->' },
+            { key: 'contribution', start: '<!-- contribution-start -->', end: '<!-- contribution-end -->', optional: true, enabled: () => !!profile.accountTiles?.contributionGraph },
+            { key: 'stats',     start: '<!-- stats-start -->',        end: '<!-- stats-end -->',   optional: true, enabled: () => !!profile.accountTiles?.statsCard },
             { key: 'monkeytype',start: '<!-- monkeytype-start -->',   end: '<!-- monkeytype-end -->', optional: true, enabled: () => !!profile.monkeytypeSvg },
             { key: 'charts',    start: '<!-- tech-charts-start -->',   end: '<!-- tech-charts-end -->' },
             { key: 'badges',    start: '<!-- tech-start -->',          end: '<!-- tech-end -->' },
@@ -568,6 +633,17 @@ export default async (req, res) => {
         await pushAsset(token, repo, 'assets/developer-rating.svg', profile.ratingSvg);
         const ratingLink = `\n<a href="https://github.com/${repo}/blob/main/DEVELOPER_INSIGHTS.md"><img src="./assets/developer-rating.svg" width="100%" alt="Developer Rating" /></a>\n`;
         readme = inject(readme, '<!-- rating-start -->', '<!-- rating-end -->', ratingLink);
+
+        // Opt-in account tiles (#42) — push each enabled tile's asset and inject its image.
+        for (const [key, { asset, alt }] of Object.entries(ACCOUNT_TILE_ASSETS)) {
+            const svg = profile.accountTiles?.[key];
+            if (!svg) continue;
+            send?.({ type: 'progress', pct: 85, msg: `Pushing ${alt}…` });
+            await pushAsset(token, repo, asset, svg);
+            const marker = ACCOUNT_TILE_ASSETS[key].marker;
+            const img = `\n<img src="./${asset}" width="100%" alt="${alt}" />\n`;
+            readme = inject(readme, `<!-- ${marker}-start -->`, `<!-- ${marker}-end -->`, img);
+        }
 
         if (profile.monkeytypeSvg) {
             send?.({ type: 'progress', pct: 87, msg: 'Pushing Monkeytype chart…' });
