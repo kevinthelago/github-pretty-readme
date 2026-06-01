@@ -1,5 +1,6 @@
 import { routes }             from './api/_routes.js';
 import { requireAuth }         from './api/auth.js';
+import { rateLimiter }         from './src/util/rate-limit.js';
 import express                from 'express';
 import cookieSession          from 'cookie-session';
 import { fileURLToPath }      from 'url';
@@ -24,8 +25,12 @@ app.use(express.static(join(__dirname, 'public')));
 
 // Auto-mount every endpoint declared in api/_routes.js. New endpoints are added
 // there as data — this loop, and the rest of express.js, never change per feature.
-for (const { method, path, handler, auth } of routes) {
-    const middleware = auth ? [requireAuth] : [];
+// `auth` gates the route behind requireAuth; `rateLimit` throttles anonymous
+// traffic via the shared limiter (authenticated sessions and /healthz self-exempt).
+for (const { method, path, handler, auth, rateLimit } of routes) {
+    const middleware = [];
+    if (auth) middleware.push(requireAuth);
+    if (rateLimit) middleware.push(rateLimiter);
     app[method](path, ...middleware, handler);
 }
 
