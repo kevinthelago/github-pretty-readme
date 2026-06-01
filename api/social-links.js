@@ -80,7 +80,7 @@ const parseLinksParam = (value) =>
         .filter(Boolean);
 
 /** Converts a `.pretty-readme.json` `social` object into badges. */
-const badgesFromConfig = (social) =>
+export const badgesFromConfig = (social) =>
     Object.entries(social ?? {})
         .map(([platform, handle]) => toBadge(platform, handle))
         .filter(Boolean);

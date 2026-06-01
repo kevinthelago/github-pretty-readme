@@ -43,7 +43,7 @@ const fetchLanguages = async (owner, repo, token) => {
  *  3. fill the year range contiguously and prefix-sum into cumulative totals,
  *  4. keep the top `langLimit` languages by total bytes.
  */
-const buildDataset = async (repos, token, repoCap, langLimit) => {
+export const buildDataset = async (repos, token, repoCap, langLimit) => {
     const selected = repos
         .filter(r => !r.fork)
         .sort((a, b) => (b.size ?? 0) - (a.size ?? 0))
