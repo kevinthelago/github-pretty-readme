@@ -43,6 +43,7 @@ describe('HTTP smoke tests', () => {
             '/tech-list',
             '/tech-categories',
             '/monkeytype',
+            '/wakatime',
             '/account-summary-md',
         ];
         for (const route of routes) {

@@ -14,6 +14,7 @@ import repos                  from './api/repos.js';
 import repoApply              from './api/repo-apply.js';
 import applyAll               from './api/apply-all.js';
 import monkeytype             from './api/monkeytype.js';
+import wakatime               from './api/wakatime.js';
 import applyReadme            from './api/apply-readme.js';
 import previewReadme          from './api/preview-readme.js';
 import contributionGraph       from './api/contribution-graph.js';
@@ -22,6 +23,7 @@ import repositoryReadme       from './api/repository-readme.js';
 import { getConfig, putConfig }                                      from './api/config.js';
 import { authGithub, authCallback, authLogout, authMe, requireAuth } from './api/auth.js';
 import { monkeytypeConnect, monkeytypeDisconnect }                   from './api/monkeytype-connect.js';
+import { wakatimeConnect, wakatimeDisconnect }                       from './api/wakatime-connect.js';
 import express                from 'express';
 import cookieSession          from 'cookie-session';
 import { fileURLToPath }      from 'url';
@@ -62,6 +64,10 @@ app.get('/apply-readme',   requireAuth, applyReadme);
 app.post('/monkeytype/connect',    monkeytypeConnect);
 app.post('/monkeytype/disconnect', monkeytypeDisconnect);
 
+// WakaTime session connect/disconnect (#68)
+app.post('/wakatime/connect',    wakatimeConnect);
+app.post('/wakatime/disconnect', wakatimeDisconnect);
+
 // SVG / data endpoints
 app.get('/account-summary',          accountSummary);
 app.get('/account-summary-md',       accountSummaryMd);
@@ -79,6 +85,7 @@ app.get('/repos',                    requireAuth, repos);
 app.get('/repo-apply',               requireAuth, repoApply);
 app.get('/apply-all',                requireAuth, applyAll);
 app.get('/monkeytype',               monkeytype);
+app.get('/wakatime',                 wakatime);
 app.get('/repository-readme',        requireAuth, repositoryReadme);
 
 // account-graph stream (#38, #39) — manual append pending #52 auto-registration
