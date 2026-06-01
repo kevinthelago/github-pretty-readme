@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { generateScoreReport, generateReadmeFromOutline } from '../markdown/score-report.js';
+import { generateScoreReport } from '../markdown/score-report.js';
+import { generateReadmeFromOutline } from '../markdown/repo-readme.js';
 import { scanCache } from '../scan-cache.js';
 
 // Mock the network/AI dependencies of the account-summary handler so the

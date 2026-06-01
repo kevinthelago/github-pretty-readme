@@ -5,7 +5,8 @@
  * Usage: node --env-file=.env test-pipeline.mjs [repoName]
  */
 import { analyzeRepo }                                        from './src/ai/repo-analyzer.js';
-import { generateScoreReport, generateReadmeFromOutline }    from './src/markdown/score-report.js';
+import { generateScoreReport }                               from './src/markdown/score-report.js';
+import { generateReadmeFromOutline }                         from './src/markdown/repo-readme.js';
 
 const repoName = process.argv[2] ?? 'test-repo';
 
