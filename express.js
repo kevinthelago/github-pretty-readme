@@ -22,6 +22,7 @@ import statsCard               from './api/stats-card.js';
 import repositoryReadme       from './api/repository-readme.js';
 import healthz                 from './api/healthz.js';
 import { rateLimiter }         from './src/util/rate-limit.js';
+import { createToken, getTokens, deleteToken }                       from './api/tokens.js';
 import { getConfig, putConfig }                                      from './api/config.js';
 import { authGithub, authCallback, authLogout, authMe, requireAuth } from './api/auth.js';
 import { monkeytypeConnect, monkeytypeDisconnect }                   from './api/monkeytype-connect.js';
@@ -57,6 +58,11 @@ app.get('/auth/github',   authGithub);
 app.get('/auth/callback', authCallback);
 app.get('/auth/logout',   authLogout);
 app.get('/auth/me',       authMe);
+
+// API tokens (auth) — mint/list/revoke long-lived tokens for headless automation (#58)
+app.post('/tokens',        requireAuth, createToken);
+app.get('/tokens',         requireAuth, getTokens);
+app.delete('/tokens/:id',  requireAuth, deleteToken);
 
 // Profile preview (generates + caches all assets) and apply
 app.get('/preview-readme', requireAuth, previewReadme);
