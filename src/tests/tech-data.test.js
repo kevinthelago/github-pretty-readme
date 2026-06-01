@@ -57,6 +57,22 @@ describe('buildTechSeries', () => {
         const series = buildTechSeries([{}, { topics: [] }], ['languages', 'frameworks'], 10, []);
         expect(series).toHaveLength(0);
     });
+
+    test('ignores topics that are not in the taxonomy', () => {
+        const series = buildTechSeries(
+            [{ topics: ['react', 'some-unknown-topic-xyz'] }],
+            ['frameworks'],
+            10,
+            [],
+        );
+        const frameworks = series.find((s) => s.label === 'Frameworks');
+        expect(frameworks.techs.map((t) => t.name)).toEqual(['React']);
+    });
+
+    test('keeps a language with no known icon, with null icon/hex', () => {
+        const [langs] = buildTechSeries([{ language: 'NotARealLang999' }], ['languages'], 10, []);
+        expect(langs.techs[0]).toMatchObject({ name: 'NotARealLang999', icon: null, hex: null });
+    });
 });
 
 describe('lookupIcon', () => {

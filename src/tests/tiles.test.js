@@ -251,6 +251,86 @@ describe('renderTechTreemap', () => {
         expect(svg).toContain('LANGUAGES');
         expect(svg).toContain('<rect');
     });
+
+    test('shows icon, clamped name and count for a large tile', () => {
+        const svg = renderTechTreemap([
+            {
+                label: 'L',
+                color: '#123456',
+                techs: [
+                    { name: 'AnExtremelyLongTechName', count: 100, icon: { path: 'M0 0h1v1H0z' } },
+                ],
+            },
+        ]);
+        expectSvgDocument(svg);
+        expect(svg).toContain('M0 0h1v1H0z'); // icon shown on a tall/wide tile
+        expect(svg).toContain('…'); // long name clamped at 14 chars
+    });
+
+    test('suppresses content for tiles that are too small', () => {
+        const many = Array.from({ length: 20 }, (_, i) => ({ name: `tech-${i}`, count: 1 }));
+        const svg = renderTechTreemap([{ label: 'Big', color: '#123456', techs: many }]);
+        expectSvgDocument(svg);
+        // 20 equal tiles in one column are < 32px tall, so no per-tile <text> is emitted
+        expect(svg).not.toContain('>tech-0<');
+    });
+});
+
+// ── renderer edge cases (branch coverage) ───────────────────────────────────────
+
+describe('renderer fallbacks and edge cases', () => {
+    test('spider chart shows a placeholder for fewer than 3 distinct techs', () => {
+        const svg = renderTechSpider([
+            {
+                label: 'X',
+                color: '#ffffff',
+                techs: [
+                    { name: 'A', count: 1 },
+                    { name: 'B', count: 2 },
+                ],
+            },
+        ]);
+        expectSvgDocument(svg);
+        expect(svg).toContain('Not enough data');
+    });
+
+    test('spider chart clamps long names and falls back on missing hex/icon', () => {
+        const svg = renderTechSpider([
+            {
+                label: 'L',
+                color: '#abcabc',
+                techs: [
+                    { name: 'AVeryLongTechnologyName', count: 3 }, // no hex, no icon
+                    { name: 'Two', count: 2 },
+                    { name: 'Three', count: 1 },
+                ],
+            },
+        ]);
+        expect(svg).toContain('…'); // clamped name
+        expect(svg).toContain('#888888'); // hex fallback
+        expect(svg).toContain('<circle'); // icon fallback
+    });
+
+    test('tech-cards falls back to grey when a tech has no hex', () => {
+        const svg = renderTechCards([
+            { label: 'L', color: '#abcdef', techs: [{ name: 'NoHex', count: 1 }] },
+        ]);
+        expectSvgDocument(svg);
+        expect(svg).toContain('#888888');
+    });
+
+    test('tech-grid handles an empty series', () => {
+        const svg = renderTechGrid([]);
+        expectSvgDocument(svg);
+    });
+
+    test('donut chart clamps long language names', () => {
+        const svg = renderDonutChart([
+            { language: 'SuperLongLanguageName', count: 5, hex: 'abcabc' },
+        ]);
+        expectSvgDocument(svg);
+        expect(svg).toContain('…');
+    });
 });
 
 // ── backgrounds ─────────────────────────────────────────────────────────────────
