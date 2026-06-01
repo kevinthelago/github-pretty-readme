@@ -1,24 +1,5 @@
-import accountSummary        from './api/account-summary.js';
-import accountSummaryMd      from './api/account-summary-md.js';
-import developerRating        from './api/developer-rating.js';
-import developerRatingInsights from './api/developer-rating-insights.js';
-import techSummary            from './api/tech-summary.js';
-import techList               from './api/tech-list.js';
-import techChart              from './api/tech-chart.js';
-import techSpider             from './api/tech-spider.js';
-import techCategories         from './api/tech-categories.js';
-import improveTopics          from './api/improve-topics.js';
-import improveDescriptions    from './api/improve-descriptions.js';
-import repoScan               from './api/repo-scan.js';
-import repos                  from './api/repos.js';
-import repoApply              from './api/repo-apply.js';
-import applyAll               from './api/apply-all.js';
-import monkeytype             from './api/monkeytype.js';
-import applyReadme            from './api/apply-readme.js';
-import previewReadme          from './api/preview-readme.js';
-import { getConfig, putConfig }                                      from './api/config.js';
-import { authGithub, authCallback, authLogout, authMe, requireAuth } from './api/auth.js';
-import { monkeytypeConnect, monkeytypeDisconnect }                   from './api/monkeytype-connect.js';
+import { routes }             from './api/_routes.js';
+import { requireAuth }         from './api/auth.js';
 import express                from 'express';
 import cookieSession          from 'cookie-session';
 import { fileURLToPath }      from 'url';
@@ -41,40 +22,11 @@ app.use(cookieSession({
 
 app.use(express.static(join(__dirname, 'public')));
 
-// Allowlist config
-app.get('/config',  requireAuth, getConfig);
-app.put('/config',  requireAuth, putConfig);
-
-// Auth
-app.get('/auth/github',   authGithub);
-app.get('/auth/callback', authCallback);
-app.get('/auth/logout',   authLogout);
-app.get('/auth/me',       authMe);
-
-// Profile preview (generates + caches all assets) and apply
-app.get('/preview-readme', requireAuth, previewReadme);
-app.get('/apply-readme',   requireAuth, applyReadme);
-
-// Monkeytype session connect/disconnect
-app.post('/monkeytype/connect',    monkeytypeConnect);
-app.post('/monkeytype/disconnect', monkeytypeDisconnect);
-
-// SVG / data endpoints
-app.get('/account-summary',          accountSummary);
-app.get('/account-summary-md',       accountSummaryMd);
-app.get('/developer-rating',         developerRating);
-app.get('/developer-rating-insights', developerRatingInsights);
-app.get('/tech-summary',             techSummary);
-app.get('/tech-list',                techList);
-app.get('/tech-chart',               techChart);
-app.get('/tech-spider',              techSpider);
-app.get('/tech-categories',          techCategories);
-app.get('/improve-topics',           improveTopics);
-app.get('/improve-descriptions',     improveDescriptions);
-app.get('/repo-scan',                requireAuth, repoScan);
-app.get('/repos',                    requireAuth, repos);
-app.get('/repo-apply',               requireAuth, repoApply);
-app.get('/apply-all',                requireAuth, applyAll);
-app.get('/monkeytype',               monkeytype);
+// Auto-mount every endpoint declared in api/_routes.js. New endpoints are added
+// there as data — this loop, and the rest of express.js, never change per feature.
+for (const { method, path, handler, auth } of routes) {
+    const middleware = auth ? [requireAuth] : [];
+    app[method](path, ...middleware, handler);
+}
 
 app.listen(process.env.PORT || process.env.port || 8088);
