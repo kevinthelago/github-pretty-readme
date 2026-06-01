@@ -3,6 +3,7 @@ import { decode } from '../util/base64.js';
 import { previewCache } from '../preview-cache.js';
 import { Tile } from '../common/Tile.js';
 import { TAXONOMY, CATEGORY_META } from '../data/tech-taxonomy.js';
+import LANGUAGE_ICON_MAP from '../icons/languages.js';
 
 describe('base64.decode', () => {
     test('decodes a valid base64 string', () => {
@@ -108,5 +109,24 @@ describe('tech taxonomy data', () => {
 
     test('CATEGORY_META includes a languages entry', () => {
         expect(CATEGORY_META.languages).toMatchObject({ label: 'Languages' });
+    });
+});
+
+describe('language icon map', () => {
+    // Guards against simple-icons renaming/removing a slug, which would silently
+    // make an entry undefined and break icon rendering in tech-data.lookupIcon.
+    test('every entry resolves to a valid simple-icons object', () => {
+        const entries = Object.entries(LANGUAGE_ICON_MAP);
+        expect(entries.length).toBeGreaterThan(0);
+        for (const [language, icon] of entries) {
+            expect(icon, language).toBeTruthy();
+            expect(icon.path, language).toBeTypeOf('string');
+            expect(icon.hex, language).toMatch(/^[0-9a-f]{3,6}$/i);
+        }
+    });
+
+    test('keys are GitHub language names used for lookup', () => {
+        expect(LANGUAGE_ICON_MAP).toHaveProperty('JavaScript');
+        expect(LANGUAGE_ICON_MAP).toHaveProperty('Python');
     });
 });
