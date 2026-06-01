@@ -1,11 +1,9 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getModel } from './client.js';
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
-
-const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    generationConfig: { responseMimeType: 'application/json' },
-});
+// JSON-mode model used for the qualitative pass. Resolved lazily (at call time,
+// via analyzeRepo's default param) so importing this module needs no API key
+// and performs no network access — keeping unit tests offline.
+const jsonModel = () => getModel({ generationConfig: { responseMimeType: 'application/json' } });
 
 // ── Scoring helpers (deterministic pre-pass) ───────────────────────────────────
 
@@ -215,9 +213,11 @@ const buildContext = (snapshot) => {
  * qualitative assessment, suggested topics, and README outline.
  *
  * @param {object} snapshot  Result of getRepoSnapshot()
+ * @param {object} [model]   injected generative model (defaults to the shared
+ *                           JSON-mode client model); inject a fake in tests.
  * @returns {object}  Full analysis with codeQuality, suggestions, readmeOutline
  */
-export const analyzeRepo = async (snapshot) => {
+export const analyzeRepo = async (snapshot, model = jsonModel()) => {
     const { meta, signals, fileContents } = snapshot;
 
     // ── Deterministic scoring ──────────────────────────────────────────────────
