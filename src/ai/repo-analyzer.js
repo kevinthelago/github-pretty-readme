@@ -297,7 +297,11 @@ Return a JSON object with EXACTLY this structure:
     "tagline": "Single compelling sentence describing what the project does",
     "features": ["Key feature 1", "Key feature 2", "Key feature 3"],
     "installationSteps": ["Step 1", "Step 2"],
-    "usageExample": "A short code or command example showing basic usage"
+    "usageExample": "A short code or command example showing basic usage",
+    "configuration": [
+      { "name": "ENV_VAR_OR_OPTION", "description": "what it controls" }
+    ],
+    "contributing": "1-2 sentences on how to contribute (where to file issues, the PR flow, any dev setup)"
   }
 }
 
@@ -305,7 +309,9 @@ Rules:
 - suggestedTopics must be valid GitHub topic slugs (lowercase, hyphens only, max 35 chars)
 - suggestions must be specific to THIS repo's actual gaps — do not repeat what is already in "already flagged as missing" verbatim, but DO address those gaps with actionable steps
 - codeQualityNotes must reflect what you actually see in the source files and config, not generic advice
-- readmeOutline should be based on the actual purpose and features visible in the code`;
+- readmeOutline should be based on the actual purpose and features visible in the code
+- configuration: list real environment variables or config options found in the code (from .env samples, config files, or documented settings); use an empty array if there are none — do NOT invent them
+- contributing: include only when the repo shows a contribution process (CONTRIBUTING.md, issue templates, an established PR flow); otherwise use an empty string`;
 
     try {
         const result = await model.generateContent(prompt);
