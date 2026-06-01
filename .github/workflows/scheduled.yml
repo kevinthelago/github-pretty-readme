@@ -1,3 +1,9 @@
+# Auth model (#60): this workflow runs its OWN server instance in-process and
+# calls it over localhost, authenticating to GitHub through the GH_PAT secret
+# exposed as GITHUB_TOKEN. It never copies a session cookie. Automation that
+# instead targets a *remote/hosted* instance must authenticate with a minted,
+# revocable API token via `Authorization: Bearer ${{ secrets.PRETTY_README_TOKEN }}`
+# (see the README "Automate your profile" section) — not a session cookie.
 name: Scheduled tasks
 
 on:

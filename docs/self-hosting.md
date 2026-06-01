@@ -174,26 +174,45 @@ full walkthrough (workflow YAML, what each run does, state file) lives in the
 
 ### Authenticating the automation
 
-The automation must authenticate as you so it can write to your repos. There are
-two paths:
+The automation must authenticate as you so it can write to your repos. Use a
+**revocable API token** — the recommended path:
 
-- **API token (target path).** The service is gaining first-class, revocable API
-  tokens you mint once and store as a repo secret — no expiry churn. This path is
-  being introduced in issues **#58 (issue/store/revoke tokens)**, **#59 (validate
-  Bearer tokens in `requireAuth`)**, and **#60 (migrate the cron automation to
-  API tokens)**. Once it lands, the workflow sends
-  `Authorization: Bearer <token>` instead of a session cookie. Prefer this path
-  as soon as it is available.
-- **Session cookie (current interim).** Until the token path lands, the workflow
-  authenticates with your session cookie:
+1. Sign in to your deployed instance via GitHub OAuth.
+2. Mint a token: `POST /tokens` (optionally `{ "label": "cron" }` in the body).
+   The token is returned **once** — store it immediately.
 
-  | Secret                  | Value                                                          |
-  | ----------------------- | -------------------------------------------------------------- |
-  | `PRETTY_README_URL`     | Your deployed service URL                                      |
-  | `PRETTY_README_SESSION` | Session cookie value (DevTools → Application → Cookies, signed in) |
+   ```bash
+   curl -fsSL -X POST -H "Content-Type: application/json" \
+     -b "session=<your-session-cookie>" \
+     -d '{"label":"cron"}' \
+     "$PRETTY_README_URL/tokens"
+   ```
 
-  Session cookies expire after 7 days, so this value must be refreshed after each
-  re-login — which is exactly why the API-token path above is the long-term plan.
+3. Store it as the `PRETTY_README_TOKEN` repo secret and have the workflow send
+   it as a Bearer header:
+
+   | Secret                | Value                                                       |
+   | --------------------- | ----------------------------------------------------------- |
+   | `PRETTY_README_URL`   | Your deployed service URL                                   |
+   | `PRETTY_README_TOKEN` | The minted API token (`POST /tokens`, returned once)        |
+
+   ```yaml
+   - name: Trigger full update
+     run: |
+       curl -fsSL \
+         -H "Authorization: Bearer ${{ secrets.PRETTY_README_TOKEN }}" \
+         "${{ secrets.PRETTY_README_URL }}/apply-all?score=true&readme=true&topics=true&descriptions=true"
+   ```
+
+List your tokens with `GET /tokens` and revoke one with `DELETE /tokens/:id`.
+Tokens are stored hashed and never expire, so rotate by minting a new one and
+deleting the old.
+
+> **Deprecated — session cookie.** The older `PRETTY_README_SESSION` cookie
+> secret still works until the cookie expires (7 days), but the unauthenticated
+> `Authorization: Bearer <any-value>` shortcut has been removed — the service
+> now verifies Bearer tokens against its store. Migrate cron automation to
+> `PRETTY_README_TOKEN`.
 
 See `.env.example` for `PROFILE_REPO_TOKEN`, used by the local
 `scripts/update-*.mjs` automation scripts when you run them outside the hosted
