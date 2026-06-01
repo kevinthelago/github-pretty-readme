@@ -1,6 +1,14 @@
+import { verifyToken } from '../src/auth/tokens.js';
+
 const CLIENT_ID     = process.env.GITHUB_APP_CLIENT_ID;
 const CLIENT_SECRET = process.env.GITHUB_APP_CLIENT_SECRET;
 const BASE_URL      = process.env.BASE_URL ?? 'http://localhost:8080';
+
+/** Extract a bearer token from the Authorization header, or null. */
+const bearerToken = (req) => {
+    const match = /^Bearer\s+(.+)$/i.exec(req.headers?.authorization ?? '');
+    return match ? match[1].trim() : null;
+};
 
 export const authGithub = (req, res) => {
     if (!CLIENT_ID) return res.status(500).send('GitHub OAuth not configured — add GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET');
@@ -61,9 +69,32 @@ export const authMe = (req, res) => {
     });
 };
 
+/**
+ * Gate a route behind authentication.
+ *
+ * Order of precedence:
+ *   1. An existing signed-in session (`session.github_token`) passes through.
+ *   2. A Bearer API token is verified against the token store (#58). A valid
+ *      token populates the same request context downstream handlers read —
+ *      `session.github_token` + `session.github_username` — so token-driven
+ *      automation behaves exactly like a signed-in user.
+ *   3. An invalid or revoked Bearer token is rejected with 401. Previously
+ *      *any* `Bearer ...` header was accepted unconditionally — this closes
+ *      that bypass.
+ *   4. Browser requests with no credentials are redirected to sign in.
+ */
 export const requireAuth = (req, res, next) => {
     if (req.session?.github_token) return next();
-    // Allow PAT-based access for scheduled GitHub Actions workflows
-    if (req.headers.authorization?.startsWith('Bearer ')) return next();
+
+    const token = bearerToken(req);
+    if (token) {
+        const record = verifyToken(token);
+        if (!record) return res.status(401).json({ error: 'Invalid or revoked token' });
+        req.session = req.session ?? {};
+        req.session.github_token    = record.githubToken;
+        req.session.github_username = record.login;
+        return next();
+    }
+
     return res.redirect('/');
 };
