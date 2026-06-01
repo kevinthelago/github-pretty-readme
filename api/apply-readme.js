@@ -8,6 +8,10 @@ import { renderMonkeytypeChart }            from '../src/tiles/monkeytype-chart.
 import { getContributionCalendar, getUserStats } from '../src/github/graphql.js';
 import { renderContributionGraph }          from '../src/tiles/contribution-graph.js';
 import { renderStatsCard }                  from '../src/tiles/stats-card.js';
+import { renderLanguageTrend }              from '../src/tiles/language-trend.js';
+import { renderSocialLinks }                from '../src/tiles/social-links.js';
+import { buildDataset as buildLanguageTrendDataset } from './language-trend.js';
+import { badgesFromConfig as buildSocialBadges }     from './social-links.js';
 import { readConfig, resolveEnabledTiles }  from '../src/github/config.js';
 import { GoogleGenerativeAI }              from '@google/generative-ai';
 import { previewCache }                    from '../src/preview-cache.js';
@@ -404,23 +408,34 @@ const renderInsights = (rating, insights, repos, recommendations = '') => {
 
 // ── Optional account tiles (opt-in via .pretty-readme.json) ─────────────────────
 
+// Defaults mirror the /language-trend endpoint (REPO_CAP_DEFAULT / LANG_LIMIT_DEFAULT).
+const LANGUAGE_TREND_REPO_CAP = 40;
+const LANGUAGE_TREND_LANG_LIMIT = 6;
+
 /**
  * Builders for the opt-in account tiles, keyed by the canonical tile id used in
- * `.pretty-readme.json`. Each builder fetches its data and returns an SVG
- * string. Tiles whose components don't exist yet (languageTrend, socialLinks —
- * #40/#41) are intentionally absent and are skipped gracefully until added.
+ * `.pretty-readme.json`. Each builder receives a context `{ token, username,
+ * repos, config }` and returns an SVG string. Data builders are reused from the
+ * standalone endpoints (`buildLanguageTrendDataset`, `buildSocialBadges`) rather
+ * than duplicated, so the apply output stays in lock-step with the endpoints.
  */
 const ACCOUNT_TILE_BUILDERS = {
-    contributionGraph: async (token, username) =>
+    contributionGraph: async ({ token, username }) =>
         renderContributionGraph(await getContributionCalendar(token, username), undefined, { username }),
-    statsCard: async (token, username) =>
+    statsCard: async ({ token, username }) =>
         renderStatsCard(await getUserStats(token, username)),
+    languageTrend: async ({ token, repos }) =>
+        renderLanguageTrend(await buildLanguageTrendDataset(repos, token, LANGUAGE_TREND_REPO_CAP, LANGUAGE_TREND_LANG_LIMIT)),
+    socialLinks: async ({ config }) =>
+        renderSocialLinks(buildSocialBadges(config?.social)),
 };
 
 /** Asset path + alt text per tile, used when injecting into the profile README. */
 const ACCOUNT_TILE_ASSETS = {
     contributionGraph: { asset: 'assets/contribution-graph.svg', alt: 'Contribution Graph', marker: 'contribution' },
     statsCard:         { asset: 'assets/stats-card.svg',         alt: 'GitHub Stats',       marker: 'stats' },
+    languageTrend:     { asset: 'assets/language-trend.svg',     alt: 'Language Trend',     marker: 'language-trend' },
+    socialLinks:       { asset: 'assets/social-links.svg',       alt: 'Social Links',       marker: 'social-links' },
 };
 
 /**
@@ -430,16 +445,20 @@ const ACCOUNT_TILE_ASSETS = {
  *
  * @returns {Promise<Record<string,string>>} Map of enabled tile id → SVG string.
  */
-export async function buildAccountTiles(token, username, log = () => {}) {
+export async function buildAccountTiles(ctx, log = () => {}) {
+    const { token, username } = ctx;
+    let config;
     let enabled;
     try {
         const result = await readConfig(token, username);
-        enabled = resolveEnabledTiles(result?.config);
+        config = result?.config;
+        enabled = resolveEnabledTiles(config);
     } catch (err) {
         log(`Config read failed: ${err.message} (no optional tiles)`);
         return {};
     }
 
+    const buildCtx = { ...ctx, config };
     const tiles = {};
     for (const key of enabled) {
         const build = ACCOUNT_TILE_BUILDERS[key];
@@ -448,7 +467,7 @@ export async function buildAccountTiles(token, username, log = () => {}) {
             continue;
         }
         try {
-            tiles[key] = await build(token, username);
+            tiles[key] = await build(buildCtx);
         } catch (err) {
             log(`Tile "${key}" failed: ${err.message} (skipping)`);
         }
@@ -540,7 +559,7 @@ export async function generateProfile(token, username, monkeyOptions = {}, onPro
 
     emit(64, 'Rendering account tiles…');
     log('Rendering opt-in account tiles…');
-    const accountTiles = await buildAccountTiles(token, username, log);
+    const accountTiles = await buildAccountTiles({ token, username, repos }, log);
     if (Object.keys(accountTiles).length) log(`Enabled account tiles: ${Object.keys(accountTiles).join(', ')}`);
 
     emit(68, 'Generating recommendations…');
@@ -621,6 +640,8 @@ export default async (req, res) => {
             { key: 'rating',    start: '<!-- rating-start -->',       end: '<!-- rating-end -->' },
             { key: 'contribution', start: '<!-- contribution-start -->', end: '<!-- contribution-end -->', optional: true, enabled: () => !!profile.accountTiles?.contributionGraph },
             { key: 'stats',     start: '<!-- stats-start -->',        end: '<!-- stats-end -->',   optional: true, enabled: () => !!profile.accountTiles?.statsCard },
+            { key: 'language',  start: '<!-- language-trend-start -->', end: '<!-- language-trend-end -->', optional: true, enabled: () => !!profile.accountTiles?.languageTrend },
+            { key: 'social',    start: '<!-- social-links-start -->', end: '<!-- social-links-end -->', optional: true, enabled: () => !!profile.accountTiles?.socialLinks },
             { key: 'monkeytype',start: '<!-- monkeytype-start -->',   end: '<!-- monkeytype-end -->', optional: true, enabled: () => !!profile.monkeytypeSvg },
             { key: 'charts',    start: '<!-- tech-charts-start -->',   end: '<!-- tech-charts-end -->' },
             { key: 'badges',    start: '<!-- tech-start -->',          end: '<!-- tech-end -->' },

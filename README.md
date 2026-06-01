@@ -384,7 +384,14 @@ you want to `true`:
   "repos": ["my-project"],
   "tiles": {
     "contributionGraph": true,
-    "statsCard": true
+    "statsCard": true,
+    "languageTrend": true,
+    "socialLinks": true
+  },
+  "social": {
+    "github": "octocat",
+    "linkedin": "octocat",
+    "email": "octocat@github.com"
   }
 }
 ```
@@ -393,8 +400,12 @@ you want to `true`:
 | :------------------ | :------ |
 | `contributionGraph` | Contribution heatmap + current/longest streak (`/contribution-graph`). |
 | `statsCard`         | Stars / commits / PRs / issues / followers / contributed-to card (`/stats-card`). |
-| `languageTrend`     | _Coming soon._ |
-| `socialLinks`       | _Coming soon._ |
+| `languageTrend`     | Cumulative language-usage-over-time stacked area chart (`/language-trend`). |
+| `socialLinks`       | Brand badges linking to your social profiles (`/social-links`), built from the `social` map below. |
+
+The `socialLinks` tile reads the top-level `social` map — `platform: handle`
+pairs (e.g. `github`, `twitter`/`x`, `linkedin`, `devto`, `mastodon`, `email`,
+`website`). Unknown platforms degrade to a generic link badge.
 
 Each enabled tile is pushed to `assets/` and injected into your README between
 its markers (e.g. `<!-- contribution-start -->` / `<!-- contribution-end -->`)
