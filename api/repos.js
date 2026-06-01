@@ -1,4 +1,5 @@
 import { getAllRepos } from '../src/github/repos.js';
+import { requireCredentials, sendJsonError } from './_shared.js';
 
 /**
  * GET /repos
@@ -7,9 +8,9 @@ import { getAllRepos } from '../src/github/repos.js';
  * sorted with the profile repo first then by most recently pushed.
  */
 export default async (req, res) => {
-    const token    = req.session?.github_token;
-    const username = req.session?.github_username;
-    if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
+    const creds = requireCredentials(req, res);
+    if (!creds) return;
+    const { token, username } = creds;
 
     try {
         const repos = await getAllRepos(token);
@@ -28,6 +29,6 @@ export default async (req, res) => {
         res.json(list);
     } catch (err) {
         console.error('[repos]', err.message);
-        res.status(500).json({ error: err.message });
+        sendJsonError(res, 500, 'internal_error', err.message);
     }
 };

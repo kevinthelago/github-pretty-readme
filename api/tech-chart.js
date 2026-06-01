@@ -2,6 +2,7 @@ import { renderTechChart } from '../src/tiles/tech-chart.js';
 import { getAllRepos } from '../src/github/repos.js';
 import LANGUAGE_ICON_MAP from '../src/icons/languages.js';
 import * as simpleIcons from 'simple-icons';
+import { resolveAuth, sendErrorSvg } from './_shared.js';
 
 const normalizeForSlug = (lang) => lang.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -16,9 +17,9 @@ export default async (req, res) => {
     res.setHeader('Content-Type', 'image/svg+xml');
 
     try {
-        const token = req.session?.github_token ?? process.env.GITHUB_TOKEN;
+        const { token } = resolveAuth(req, { allowEnv: true });
         const repos = await getAllRepos(token);
-        if (!repos) return res.status(401).send('GitHub not connected');
+        if (!repos) return sendErrorSvg(res, 'GitHub not connected');
 
         const langFreq = {};
         repos.forEach(repo => {
@@ -34,6 +35,6 @@ export default async (req, res) => {
 
         return res.send(renderTechChart(langs, chart));
     } catch (err) {
-        return res.send(err.message);
+        return sendErrorSvg(res, err.message);
     }
 };

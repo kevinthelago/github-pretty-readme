@@ -2,6 +2,7 @@ import { getRepoSnapshot }                        from '../src/github/repo-conte
 import { analyzeRepo }                            from '../src/ai/repo-analyzer.js';
 import { scanCache }                              from '../src/scan-cache.js';
 import { generateScoreReport, generateReadmeFromOutline, scoreBadgeMd } from '../src/markdown/score-report.js';
+import { sendJsonError, boolParam } from './_shared.js';
 
 const ghHeaders = (token) => ({
     Authorization:  `Bearer ${token}`,
@@ -59,20 +60,20 @@ export default async (req, res) => {
                 const userRes = await fetch('https://api.github.com/user', {
                     headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
                 });
-                if (!userRes.ok) return res.status(401).json({ error: 'Invalid token' });
+                if (!userRes.ok) return sendJsonError(res, 401, 'invalid_token', 'Invalid token');
                 username = (await userRes.json()).login;
             } catch {
-                return res.status(401).json({ error: 'Failed to verify token' });
+                return sendJsonError(res, 401, 'invalid_token', 'Failed to verify token');
             }
         }
     }
 
-    if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
+    if (!token || !username) return sendJsonError(res, 401, 'unauthenticated', 'Not authenticated');
 
     const repoParam      = req.query.repo?.trim();
-    const generateReadme = req.query.readme    === 'true';
-    const pushWorkflow   = req.query.workflow  === 'true';
-    if (!repoParam) return res.status(400).json({ error: 'Missing ?repo= parameter' });
+    const generateReadme = boolParam(req.query.readme);
+    const pushWorkflow   = boolParam(req.query.workflow);
+    if (!repoParam) return sendJsonError(res, 400, 'bad_request', 'Missing ?repo= parameter');
 
     const fullRepo = repoParam.includes('/') ? repoParam : `${username}/${repoParam}`;
     const repo     = fullRepo.split('/').pop();
@@ -154,6 +155,6 @@ export default async (req, res) => {
         res.json({ ok: true, steps });
     } catch (err) {
         console.error(`[repo-apply] ${username}/${repo}:`, err.message);
-        res.status(500).json({ error: err.message });
+        sendJsonError(res, 500, 'internal_error', err.message);
     }
 };

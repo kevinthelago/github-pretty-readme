@@ -1,4 +1,5 @@
 import { renderMonkeytypeChart } from '../src/tiles/monkeytype-chart.js';
+import { sendErrorSvg } from './_shared.js';
 
 const TIME_MODES = ['15', '30', '60', '120'];
 
@@ -18,7 +19,7 @@ const isStandardEnglish = r =>
  */
 export default async (req, res) => {
     const apiKey = req.session?.monkeytype_key ?? process.env.MONKEYTYPE_API_KEY;
-    if (!apiKey) return res.status(401).send('Monkeytype not connected');
+    if (!apiKey) return sendErrorSvg(res, 'Monkeytype not connected');
 
     res.setHeader('Content-Type', 'image/svg+xml');
 
@@ -43,10 +44,10 @@ export default async (req, res) => {
             };
         }).filter(Boolean);
 
-        if (modes.length === 0) return res.status(400).send('No standard English time mode data found');
+        if (modes.length === 0) return sendErrorSvg(res, 'No standard English time mode data found');
 
         return res.send(renderMonkeytypeChart(modes));
     } catch (err) {
-        return res.status(500).send(err.message);
+        return sendErrorSvg(res, err.message);
     }
 };

@@ -1,6 +1,7 @@
 import { getAllRepos } from '../src/github/repos.js';
 import LANGUAGE_ICON_MAP from '../src/icons/languages.js';
 import * as simpleIcons from 'simple-icons';
+import { resolveAuth, sendJsonError, listParam } from './_shared.js';
 
 const normalizeForSlug = (lang) =>
     lang.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -12,13 +13,13 @@ const lookupIcon = (lang) => {
 };
 
 export default async (req, res) => {
-    const { sort, exclude } = req.query;
+    const { sort } = req.query;
 
     res.setHeader('Content-Type', 'application/json');
 
-    const token = req.session?.github_token ?? process.env.GITHUB_TOKEN;
+    const { token } = resolveAuth(req, { allowEnv: true });
     const repos = await getAllRepos(token);
-    if (!repos) return res.status(401).json({ error: 'GitHub not connected' });
+    if (!repos) return sendJsonError(res, 401, 'unauthenticated', 'GitHub not connected');
 
     const langFreq = {};
     repos.forEach(repo => {
@@ -27,7 +28,7 @@ export default async (req, res) => {
         }
     });
 
-    const excluded = exclude ? exclude.split(',').map(s => s.trim()) : [];
+    const excluded = listParam(req.query.exclude);
 
     let langs = Object.entries(langFreq)
         .filter(([lang]) => !excluded.includes(lang));

@@ -1,6 +1,7 @@
 import { getRepoSnapshot } from '../src/github/repo-contents.js';
 import { analyzeRepo }     from '../src/ai/repo-analyzer.js';
 import { scanCache }       from '../src/scan-cache.js';
+import { requireCredentials, sendJsonError, boolParam } from './_shared.js';
 
 /**
  * GET /repo-scan?repo={repoName}[&refresh=true]
@@ -13,14 +14,14 @@ import { scanCache }       from '../src/scan-cache.js';
  * Results are cached for 4 hours per user/repo pair.
  */
 export default async (req, res) => {
-    const token    = req.session?.github_token;
-    const username = req.session?.github_username;
-    if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
+    const creds = requireCredentials(req, res);
+    if (!creds) return;
+    const { token, username } = creds;
 
     const repo = req.query.repo?.trim();
-    if (!repo) return res.status(400).json({ error: 'Missing ?repo= parameter' });
+    if (!repo) return sendJsonError(res, 400, 'bad_request', 'Missing ?repo= parameter');
 
-    const refresh = req.query.refresh === 'true';
+    const refresh = boolParam(req.query.refresh);
 
     if (!refresh) {
         const cached = scanCache.get(username, repo);
@@ -34,6 +35,6 @@ export default async (req, res) => {
         return res.json({ ok: true, cached: false, ...analysis });
     } catch (err) {
         console.error(`[repo-scan] ${username}/${repo}:`, err.message);
-        return res.status(500).json({ error: err.message });
+        return sendJsonError(res, 500, 'internal_error', err.message);
     }
 };

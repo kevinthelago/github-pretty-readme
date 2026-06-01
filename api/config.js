@@ -1,31 +1,32 @@
 import { readConfig, writeConfig } from '../src/github/config.js';
+import { requireCredentials, sendJsonError } from './_shared.js';
 
 export const getConfig = async (req, res) => {
-    const token    = req.session?.github_token;
-    const username = req.session?.github_username;
-    if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
+    const creds = requireCredentials(req, res);
+    if (!creds) return;
+    const { token, username } = creds;
 
     try {
         const result = await readConfig(token, username);
         res.json({ config: result?.config ?? null, exists: result !== null });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        sendJsonError(res, 500, 'internal_error', err.message);
     }
 };
 
 export const putConfig = async (req, res) => {
-    const token    = req.session?.github_token;
-    const username = req.session?.github_username;
-    if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
+    const creds = requireCredentials(req, res);
+    if (!creds) return;
+    const { token, username } = creds;
 
     const { repos } = req.body;
-    if (!Array.isArray(repos)) return res.status(400).json({ error: 'repos must be an array of strings' });
+    if (!Array.isArray(repos)) return sendJsonError(res, 400, 'bad_request', 'repos must be an array of strings');
 
     try {
         const existing = await readConfig(token, username);
         await writeConfig(token, username, { repos }, existing?.sha);
         res.json({ ok: true });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        sendJsonError(res, 500, 'internal_error', err.message);
     }
 };
