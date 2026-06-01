@@ -24,6 +24,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Fails the build when coverage drops below the thresholds defined in
+      # vitest.config.js (lines/statements 60, branches 75, functions 60).
       - name: Run tests with coverage
         run: npm run test:coverage
 
