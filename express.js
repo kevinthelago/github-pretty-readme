@@ -16,6 +16,7 @@ import applyAll               from './api/apply-all.js';
 import monkeytype             from './api/monkeytype.js';
 import applyReadme            from './api/apply-readme.js';
 import previewReadme          from './api/preview-readme.js';
+import repositoryReadme       from './api/repository-readme.js';
 import { getConfig, putConfig }                                      from './api/config.js';
 import { authGithub, authCallback, authLogout, authMe, requireAuth } from './api/auth.js';
 import { monkeytypeConnect, monkeytypeDisconnect }                   from './api/monkeytype-connect.js';
@@ -76,5 +77,6 @@ app.get('/repos',                    requireAuth, repos);
 app.get('/repo-apply',               requireAuth, repoApply);
 app.get('/apply-all',                requireAuth, applyAll);
 app.get('/monkeytype',               monkeytype);
+app.get('/repository-readme',        requireAuth, repositoryReadme);
 
 app.listen(process.env.PORT || process.env.port || 8088);
