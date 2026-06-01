@@ -21,6 +21,7 @@ import contributionGraph       from './api/contribution-graph.js';
 import statsCard               from './api/stats-card.js';
 import repositoryReadme       from './api/repository-readme.js';
 import healthz                 from './api/healthz.js';
+import { rateLimiter }         from './src/util/rate-limit.js';
 import { getConfig, putConfig }                                      from './api/config.js';
 import { authGithub, authCallback, authLogout, authMe, requireAuth } from './api/auth.js';
 import { monkeytypeConnect, monkeytypeDisconnect }                   from './api/monkeytype-connect.js';
@@ -68,6 +69,12 @@ app.post('/monkeytype/disconnect', monkeytypeDisconnect);
 // WakaTime session connect/disconnect (#68)
 app.post('/wakatime/connect',    wakatimeConnect);
 app.post('/wakatime/disconnect', wakatimeDisconnect);
+
+// Rate limiting (#64) — throttles anonymous traffic to the public SVG/data/AI
+// endpoints registered below. Authenticated sessions are exempt, so the
+// requireAuth-gated apply routes (here and earlier) are never throttled; the
+// /healthz probe is exempt by path inside the limiter.
+app.use(rateLimiter);
 
 // SVG / data endpoints
 app.get('/account-summary',          accountSummary);
