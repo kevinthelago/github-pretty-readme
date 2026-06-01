@@ -157,6 +157,17 @@ Add `.pretty-readme.json` to your profile repository (`{username}/{username}`). 
 
 You can manage this file from the app UI or directly in GitHub. If this file doesn't exist, the cron job will refuse to run — intentional, so a fresh deploy can't accidentally bulk-update everything.
 
+The same file can opt into extra profile tiles (all off by default) via a `tiles` block — for example a contribution heatmap and a GitHub stats card:
+
+```json
+{
+  "repos": ["my-main-project"],
+  "tiles": { "contributionGraph": true, "statsCard": true }
+}
+```
+
+Enabled tiles are rendered as SVGs, pushed to `assets/`, and injected into your profile README between their markers on the next apply.
+
 ### Step 2 — Add the workflow
 
 In your profile repository (`{username}/{username}`), create `.github/workflows/pretty-readme.yml`:

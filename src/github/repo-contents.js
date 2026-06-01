@@ -1,4 +1,4 @@
-const GH = 'https://api.github.com';
+import { createGithubClient } from './repos.js';
 
 // Config/manifest files that reveal the project's toolchain
 const KEY_FILES = [
@@ -74,17 +74,9 @@ const extOf = (path) => {
 
 const isSourceFile = (path) => SOURCE_EXTS.has(extOf(path)) && !isTestPath(path);
 
-const ghHeaders = (token) => ({
-    Authorization: `Bearer ${token}`,
-    Accept:        'application/vnd.github+json',
-});
-
-const readFile = async (token, owner, repo, path) => {
+const readFile = async (gh, owner, repo, path) => {
     try {
-        const res = await fetch(
-            `${GH}/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`,
-            { headers: ghHeaders(token) }
-        );
+        const res = await gh.request(`/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`);
         if (!res.ok) return null;
         const data = await res.json();
         if (Array.isArray(data) || data.encoding !== 'base64') return null;
@@ -99,21 +91,26 @@ const readFile = async (token, owner, repo, path) => {
  * Fetches a thorough snapshot of a repository for code quality analysis.
  * Makes ~25–30 GitHub API calls per repo.
  *
+ * @param {string} token       bearer token used to build a default client
+ * @param {string} owner
+ * @param {string} repoName
+ * @param {object} [client]    injected GitHub client (tests); defaults to a
+ *                             token-aware client (see createGithubClient)
  * @returns {{ meta, tree, signals, fileContents, sourceFiles, testFiles }}
  */
-export const getRepoSnapshot = async (token, owner, repoName) => {
-    const hdrs = ghHeaders(token);
+export const getRepoSnapshot = async (token, owner, repoName, client) => {
+    const gh = client ?? createGithubClient({ token });
 
     // ── 1. Repo metadata ───────────────────────────────────────────────────────
-    const metaRes = await fetch(`${GH}/repos/${owner}/${repoName}`, { headers: hdrs });
+    const metaRes = await gh.request(`/repos/${owner}/${repoName}`);
     if (!metaRes.ok) throw new Error(`Repo not found: ${owner}/${repoName}`);
     const meta = await metaRes.json();
     const branch = meta.default_branch || 'main';
 
     // ── 2. Full file tree ──────────────────────────────────────────────────────
-    const treeRes = await fetch(
-        `${GH}/repos/${owner}/${repoName}/git/trees/${branch}?recursive=1`,
-        { headers: hdrs }
+    const treeRes = await gh.request(
+        `/repos/${owner}/${repoName}/git/trees/${branch}`,
+        { params: { recursive: 1 } }
     );
     if (!treeRes.ok) throw new Error(`Tree fetch failed for ${repoName}`);
     const { tree: rawTree = [], truncated } = await treeRes.json();
@@ -152,7 +149,7 @@ export const getRepoSnapshot = async (token, owner, repoName) => {
     ].slice(0, 30); // hard cap to protect rate limits
 
     const readResults = await Promise.all(
-        toRead.map(async path => ({ path, content: await readFile(token, owner, repoName, path) }))
+        toRead.map(async path => ({ path, content: await readFile(gh, owner, repoName, path) }))
     );
 
     const fileContents = {};

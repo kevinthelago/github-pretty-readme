@@ -2,7 +2,8 @@ import { getAllRepos }                                            from '../src/g
 import { getRepoSnapshot }                                       from '../src/github/repo-contents.js';
 import { analyzeRepo }                                           from '../src/ai/repo-analyzer.js';
 import { scanCache }                                             from '../src/scan-cache.js';
-import { generateScoreReport, generateReadmeFromOutline, scoreBadgeMd } from '../src/markdown/score-report.js';
+import { generateScoreReport }                                    from '../src/markdown/score-report.js';
+import { generateReadmeFromOutline, scoreBadgeMd }                from '../src/markdown/repo-readme.js';
 import { readConfig }                                            from '../src/github/config.js';
 import { readState, writeState }                                 from '../src/github/run-state.js';
 import { getRepoInfo, ensureBranch, getFile, getFileSha, putFile, openOrUpdatePR } from '../src/github/pr-writer.js';

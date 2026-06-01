@@ -53,9 +53,11 @@ Renders the dashboard HTML page. Requires an active session.
 
 Generates and pushes SVG graphics and markdown content to the user's GitHub profile README repository (`{username}/{username}`). Requires an active session with `repo` scope.
 
+Opt-in account tiles enabled in `.pretty-readme.json` (`tiles.contributionGraph`, `tiles.statsCard`, …) are rendered, pushed to `assets/`, and injected between their README markers. See [README → Opt-in profile tiles](../README.md#opt-in-profile-tiles).
+
 | Parameter  | Default | Description |
 | :--------- | :------ | :---------- |
-| `dry_run`  | `false` | If `true`, runs without writing to GitHub and returns generated content. |
+| `dry_run`  | `false` | If `true`, runs without writing to GitHub and returns generated content. The response's `tiles` array lists the enabled account-tile ids. |
 
 ---
 
@@ -121,6 +123,31 @@ Generates an SVG developer rating card.
 ### GET /developer-rating-insights
 
 Generates a Markdown report with developer rating insights and recommendations.
+
+---
+
+### GET /contribution-graph
+
+Generates an SVG contribution heatmap (a 53×7 calendar) with current-streak,
+longest-streak, and total-contribution figures, sourced from the GitHub GraphQL
+contribution calendar.
+
+| Parameter    | Default | Description |
+| :----------- | :------ | :---------- |
+| `username`   |         | GitHub username (required if not authenticated). |
+| `background` | `null`  | Theme: `cherry-blossom`, `geometric`, or `vapor-wave` (alias: `theme`). |
+
+---
+
+### GET /stats-card
+
+Generates an SVG stats card — total stars, commits, pull requests, issues,
+followers, and repositories contributed to — aggregated from the GitHub GraphQL
+API. Adapts to light/dark mode via `prefers-color-scheme`.
+
+| Parameter  | Default | Description |
+| :--------- | :------ | :---------- |
+| `username` |         | GitHub username (required if not authenticated). |
 
 ---
 

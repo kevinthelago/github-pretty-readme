@@ -1,8 +1,9 @@
 import { getRepoSnapshot }                        from '../src/github/repo-contents.js';
 import { analyzeRepo }                            from '../src/ai/repo-analyzer.js';
 import { scanCache }                              from '../src/scan-cache.js';
-import { generateScoreReport, generateReadmeFromOutline, scoreBadgeMd } from '../src/markdown/score-report.js';
-import { sendJsonError, boolParam } from './_shared.js';
+import { generateScoreReport }                       from '../src/markdown/score-report.js';
+import { generateReadmeFromOutline, scoreBadgeMd }   from '../src/markdown/repo-readme.js';
+import { sendJsonError, boolParam }                  from './_shared.js';
 
 const ghHeaders = (token) => ({
     Authorization:  `Bearer ${token}`,

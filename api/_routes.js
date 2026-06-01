@@ -36,6 +36,9 @@ import applyAll                   from './apply-all.js';
 import monkeytype                 from './monkeytype.js';
 import applyReadme                from './apply-readme.js';
 import previewReadme              from './preview-readme.js';
+import contributionGraph          from './contribution-graph.js';
+import statsCard                  from './stats-card.js';
+import repositoryReadme           from './repository-readme.js';
 import { getConfig, putConfig }                          from './config.js';
 import { authGithub, authCallback, authLogout, authMe }  from './auth.js';
 import { monkeytypeConnect, monkeytypeDisconnect }       from './monkeytype-connect.js';
@@ -77,6 +80,11 @@ export const routes = [
     { method: 'get', path: '/repo-apply', handler: repoApply, auth: true },
     { method: 'get', path: '/apply-all',  handler: applyAll,  auth: true },
     { method: 'get', path: '/monkeytype', handler: monkeytype },
+    { method: 'get', path: '/repository-readme', handler: repositoryReadme, auth: true },
+
+    // account-graph stream (#38, #39)
+    { method: 'get', path: '/contribution-graph', handler: contributionGraph },
+    { method: 'get', path: '/stats-card',         handler: statsCard },
 ];
 
 export default routes;

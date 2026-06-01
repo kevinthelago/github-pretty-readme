@@ -373,6 +373,46 @@ Add `.pretty-readme.json` to your profile repository (`{username}/{username}`):
 
 Only repos in this list will be touched. You can also manage this file through the app UI at `GET /config` / `PUT /config`.
 
+#### Opt-in profile tiles
+
+The same `.pretty-readme.json` can enable extra account tiles in your profile
+README. All tiles are **off by default** — add a `tiles` block and set the ones
+you want to `true`:
+
+```json
+{
+  "repos": ["my-project"],
+  "tiles": {
+    "contributionGraph": true,
+    "statsCard": true,
+    "languageTrend": true,
+    "socialLinks": true
+  },
+  "social": {
+    "github": "octocat",
+    "linkedin": "octocat",
+    "email": "octocat@github.com"
+  }
+}
+```
+
+| Tile id             | Renders |
+| :------------------ | :------ |
+| `contributionGraph` | Contribution heatmap + current/longest streak (`/contribution-graph`). |
+| `statsCard`         | Stars / commits / PRs / issues / followers / contributed-to card (`/stats-card`). |
+| `languageTrend`     | Cumulative language-usage-over-time stacked area chart (`/language-trend`). |
+| `socialLinks`       | Brand badges linking to your social profiles (`/social-links`), built from the `social` map below. |
+
+The `socialLinks` tile reads the top-level `social` map — `platform: handle`
+pairs (e.g. `github`, `twitter`/`x`, `linkedin`, `devto`, `mastodon`, `email`,
+`website`). Unknown platforms degrade to a generic link badge.
+
+Each enabled tile is pushed to `assets/` and injected into your README between
+its markers (e.g. `<!-- contribution-start -->` / `<!-- contribution-end -->`)
+during `GET /apply-readme`. The `GET /preview-readme` response includes the
+rendered tiles under `accountTiles`, and `GET /apply-readme?dry_run=true` lists
+the enabled tile ids under `tiles`.
+
 ### 2 — Add the workflow
 
 Create `.github/workflows/pretty-readme.yml` in your profile repository:

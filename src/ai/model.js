@@ -1,15 +1,20 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getModel } from './client.js';
 
-const googleAIStudioKey = process.env.GOOGLE_AI_STUDIO_KEY;
-const prompt = process.env.AI_PROMPT;
-const genAI = new GoogleGenerativeAI(googleAIStudioKey);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-const generateTopicsSummary = (repos) => {
-    return model.generateContent(prompt.replace(/\{topics\}/g, JSON.stringify(repos)))
-        .then(data => data.response.text())
-        .catch(err => { throw err; });
-}
+/**
+ * Summarizes a set of repos via Gemini using the AI_PROMPT template.
+ *
+ * @param {Array}  repos   repo data substituted into the `{topics}` placeholder
+ * @param {object} [model] injected generative model; defaults to the shared
+ *                         client's model (see ./client.js). Inject a fake in
+ *                         unit tests to avoid any network access.
+ * @returns {Promise<string>} the generated summary text
+ */
+const generateTopicsSummary = (repos, model = getModel()) => {
+    const prompt = process.env.AI_PROMPT;
+    return model
+        .generateContent(prompt.replace(/\{topics\}/g, JSON.stringify(repos)))
+        .then((data) => data.response.text());
+};
 
 export { generateTopicsSummary };
 export default generateTopicsSummary;
