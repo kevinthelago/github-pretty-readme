@@ -1,8 +1,8 @@
 {
   "name": "github-pretty-readme",
-  "version": "0.0.0",
-  "description": "API for generating pretty graphics for markdown documents",
-  "main": "index.js",
+  "version": "0.1.0",
+  "description": "Node.js/Express service that generates dynamic, styled SVG graphics and Markdown content for GitHub profile READMEs.",
+  "main": "express.js",
   "repository": "https://github.com/kevinthelago/github-pretty-readme.git",
   "author": "Kevin Lago",
   "license": "MIT",
