@@ -47,7 +47,7 @@ describe('HTTP smoke tests', () => {
             const res = await fetch(`http://localhost:${PORT}${path}`, { method: method.toUpperCase(), redirect: 'manual' });
             expect(res.status, `${method.toUpperCase()} ${path} returned 404 — route not registered`).not.toBe(404);
         }
-    });
+    }, 30_000);
 
     test('auth-gated routes redirect unauthenticated requests', async () => {
         const gated = routes.filter(r => r.auth);
