@@ -97,7 +97,11 @@ afterEach(() => {
 
 // ── shared auth gating ───────────────────────────────────────────────────────
 
-describe('auth gating (401 when GitHub is not connected)', () => {
+describe('auth gating (when GitHub is not connected)', () => {
+    // Image endpoints surface failures as an SVG error tile at HTTP 200 (a 4xx
+    // would render as a broken-image icon inside an <img>); JSON endpoints answer
+    // with the standard 401 + { error: { code, message } } envelope. See the
+    // shared handler conventions in src/util/http.js.
     const svgHandlers = [
         ['developer-rating', developerRating],
         ['tech-chart', techChart],
@@ -112,11 +116,14 @@ describe('auth gating (401 when GitHub is not connected)', () => {
     ];
 
     test.each(svgHandlers)(
-        '%s responds 401 when getAllRepos returns null',
+        '%s renders an SVG error tile when getAllRepos returns null',
         async (_name, handler) => {
             getAllRepos.mockResolvedValue(null);
             const res = await call(handler);
-            expect(res.statusCode).toBe(401);
+            expect(res.statusCode).toBe(200);
+            expect(res.headers['content-type']).toBe('image/svg+xml');
+            expect(res.body).toContain('<svg');
+            expect(res.body).toContain('Error');
         },
     );
 
@@ -126,7 +133,7 @@ describe('auth gating (401 when GitHub is not connected)', () => {
             getAllRepos.mockResolvedValue(null);
             const res = await call(handler);
             expect(res.statusCode).toBe(401);
-            expect(res.body).toMatchObject({ error: expect.any(String) });
+            expect(res.body).toMatchObject({ error: { message: expect.any(String) } });
         },
     );
 
@@ -154,10 +161,13 @@ describe('GET /developer-rating', () => {
         expect(res.body).toContain('DEVELOPER RATING');
     });
 
-    test('returns 500 when the repo fetch throws', async () => {
+    test('renders an SVG error tile when the repo fetch throws', async () => {
         getAllRepos.mockRejectedValue(new Error('boom'));
         const res = await call(developerRating);
-        expect(res.statusCode).toBe(500);
+        expect(res.statusCode).toBe(200);
+        expect(res.headers['content-type']).toBe('image/svg+xml');
+        expect(res.body).toContain('<svg');
+        expect(res.body).toContain('Error');
     });
 });
 
@@ -247,9 +257,12 @@ describe('category visualization handlers', () => {
         expect(res.body).toContain('<svg');
     });
 
-    test.each(handlers)('%s responds 400 when no series can be built', async (_name, handler) => {
+    test.each(handlers)('%s renders an SVG error tile when no series can be built', async (_name, handler) => {
         getAllRepos.mockResolvedValue([{ name: 'empty' }]); // no language, no topics
         const res = await call(handler);
-        expect(res.statusCode).toBe(400);
+        expect(res.statusCode).toBe(200);
+        expect(res.headers['content-type']).toBe('image/svg+xml');
+        expect(res.body).toContain('<svg');
+        expect(res.body).toContain('Error');
     });
 });

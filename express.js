@@ -1,32 +1,6 @@
-import accountSummary        from './api/account-summary.js';
-import accountSummaryMd      from './api/account-summary-md.js';
-import developerRating        from './api/developer-rating.js';
-import developerRatingInsights from './api/developer-rating-insights.js';
-import techSummary            from './api/tech-summary.js';
-import techList               from './api/tech-list.js';
-import techChart              from './api/tech-chart.js';
-import techSpider             from './api/tech-spider.js';
-import techCategories         from './api/tech-categories.js';
-import improveTopics          from './api/improve-topics.js';
-import improveDescriptions    from './api/improve-descriptions.js';
-import repoScan               from './api/repo-scan.js';
-import repos                  from './api/repos.js';
-import repoApply              from './api/repo-apply.js';
-import applyAll               from './api/apply-all.js';
-import monkeytype             from './api/monkeytype.js';
-import wakatime               from './api/wakatime.js';
-import applyReadme            from './api/apply-readme.js';
-import previewReadme          from './api/preview-readme.js';
-import contributionGraph       from './api/contribution-graph.js';
-import statsCard               from './api/stats-card.js';
-import repositoryReadme       from './api/repository-readme.js';
-import healthz                 from './api/healthz.js';
+import { routes }             from './api/_routes.js';
+import { requireAuth }         from './api/auth.js';
 import { rateLimiter }         from './src/util/rate-limit.js';
-import { createToken, getTokens, deleteToken }                       from './api/tokens.js';
-import { getConfig, putConfig }                                      from './api/config.js';
-import { authGithub, authCallback, authLogout, authMe, requireAuth } from './api/auth.js';
-import { monkeytypeConnect, monkeytypeDisconnect }                   from './api/monkeytype-connect.js';
-import { wakatimeConnect, wakatimeDisconnect }                       from './api/wakatime-connect.js';
 import express                from 'express';
 import cookieSession          from 'cookie-session';
 import { fileURLToPath }      from 'url';
@@ -49,65 +23,15 @@ app.use(cookieSession({
 
 app.use(express.static(join(__dirname, 'public')));
 
-// Allowlist config
-app.get('/config',  requireAuth, getConfig);
-app.put('/config',  requireAuth, putConfig);
-
-// Auth
-app.get('/auth/github',   authGithub);
-app.get('/auth/callback', authCallback);
-app.get('/auth/logout',   authLogout);
-app.get('/auth/me',       authMe);
-
-// API tokens (auth) — mint/list/revoke long-lived tokens for headless automation (#58)
-app.post('/tokens',        requireAuth, createToken);
-app.get('/tokens',         requireAuth, getTokens);
-app.delete('/tokens/:id',  requireAuth, deleteToken);
-
-// Profile preview (generates + caches all assets) and apply
-app.get('/preview-readme', requireAuth, previewReadme);
-app.get('/apply-readme',   requireAuth, applyReadme);
-
-// Monkeytype session connect/disconnect
-app.post('/monkeytype/connect',    monkeytypeConnect);
-app.post('/monkeytype/disconnect', monkeytypeDisconnect);
-
-// WakaTime session connect/disconnect (#68)
-app.post('/wakatime/connect',    wakatimeConnect);
-app.post('/wakatime/disconnect', wakatimeDisconnect);
-
-// Rate limiting (#64) — throttles anonymous traffic to the public SVG/data/AI
-// endpoints registered below. Authenticated sessions are exempt, so the
-// requireAuth-gated apply routes (here and earlier) are never throttled; the
-// /healthz probe is exempt by path inside the limiter.
-app.use(rateLimiter);
-
-// SVG / data endpoints
-app.get('/account-summary',          accountSummary);
-app.get('/account-summary-md',       accountSummaryMd);
-app.get('/developer-rating',         developerRating);
-app.get('/developer-rating-insights', developerRatingInsights);
-app.get('/tech-summary',             techSummary);
-app.get('/tech-list',                techList);
-app.get('/tech-chart',               techChart);
-app.get('/tech-spider',              techSpider);
-app.get('/tech-categories',          techCategories);
-app.get('/improve-topics',           improveTopics);
-app.get('/improve-descriptions',     improveDescriptions);
-app.get('/repo-scan',                requireAuth, repoScan);
-app.get('/repos',                    requireAuth, repos);
-app.get('/repo-apply',               requireAuth, repoApply);
-app.get('/apply-all',                requireAuth, applyAll);
-app.get('/monkeytype',               monkeytype);
-app.get('/wakatime',                 wakatime);
-app.get('/repository-readme',        requireAuth, repositoryReadme);
-
-// account-graph stream (#38, #39) — manual append pending #52 auto-registration
-app.get('/contribution-graph',       contributionGraph);
-app.get('/stats-card',               statsCard);
-
-// Health probe (#63) — unauthenticated, dependency-free; manual append pending
-// #52 auto-registration (core-http: carry into api/_routes.js when #83 lands).
-app.get('/healthz',                  healthz);
+// Auto-mount every endpoint declared in api/_routes.js. New endpoints are added
+// there as data — this loop, and the rest of express.js, never change per feature.
+// `auth` gates the route behind requireAuth; `rateLimit` throttles anonymous
+// traffic via the shared limiter (authenticated sessions and /healthz self-exempt).
+for (const { method, path, handler, auth, rateLimit } of routes) {
+    const middleware = [];
+    if (auth) middleware.push(requireAuth);
+    if (rateLimit) middleware.push(rateLimiter);
+    app[method](path, ...middleware, handler);
+}
 
 app.listen(process.env.PORT || process.env.port || 8088);

@@ -1,5 +1,6 @@
 import { getAllRepos } from '../src/github/repos.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { resolveAuth, sendJsonError, boolParam } from './_shared.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -45,18 +46,18 @@ const applyDescription = async (owner, repoName, description, token) => {
  *   dry_run   Set to "true" to preview changes without applying them
  */
 export default async (req, res) => {
-    const token = req.session?.github_token ?? process.env.GITHUB_TOKEN;
-    if (!token) return res.status(401).json({ error: 'GitHub not connected' });
+    const { token } = resolveAuth(req, { allowEnv: true });
+    if (!token) return sendJsonError(res, 401, 'unauthenticated', 'GitHub not connected');
 
-    const dryRun = req.query.dry_run === 'true';
+    const dryRun = boolParam(req.query.dry_run);
     const results = { updated: [], skipped: [], errors: [] };
 
     let repos;
     try {
         repos = await getAllRepos(token);
-        if (!repos) return res.status(401).json({ error: 'GitHub not connected' });
+        if (!repos) return sendJsonError(res, 401, 'unauthenticated', 'GitHub not connected');
     } catch (err) {
-        return res.status(500).json({ error: err.message });
+        return sendJsonError(res, 500, 'internal_error', err.message);
     }
 
     const needsDescription = repos.filter(r => !r.description?.trim() && !r.archived && !r.fork);

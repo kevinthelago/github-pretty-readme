@@ -8,6 +8,7 @@ import { readConfig }                                            from '../src/gi
 import { readState, writeState }                                 from '../src/github/run-state.js';
 import { getRepoInfo, ensureBranch, getFile, getFileSha, putFile, openOrUpdatePR } from '../src/github/pr-writer.js';
 import { GoogleGenerativeAI }                                    from '@google/generative-ai';
+import { requireCredentials, sendJsonError, boolParam }          from './_shared.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -127,15 +128,15 @@ const buildPRBody = ({ scorePushed, readmePushed, workflowPushed, topicsApplied,
  *   descriptions=true Apply AI descriptions immediately
  */
 export default async (req, res) => {
-    const token    = req.session?.github_token;
-    const username = req.session?.github_username;
-    if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
+    const creds = requireCredentials(req, res);
+    if (!creds) return;
+    const { token, username } = creds;
 
-    const doScore        = req.query.score        === 'true';
-    const doReadme       = req.query.readme       === 'true';
-    const doTopics       = req.query.topics       === 'true';
-    const doDescriptions = req.query.descriptions === 'true';
-    const doWorkflow     = req.query.workflow     === 'true';
+    const doScore        = boolParam(req.query.score);
+    const doReadme       = boolParam(req.query.readme);
+    const doTopics       = boolParam(req.query.topics);
+    const doDescriptions = boolParam(req.query.descriptions);
+    const doWorkflow     = boolParam(req.query.workflow);
 
     const isSSE = req.headers.accept?.includes('text/event-stream');
     if (isSSE) {
@@ -165,7 +166,7 @@ export default async (req, res) => {
 
         // ── Fetch repos ────────────────────────────────────────────────────────
         const allRepos = await getAllRepos(token);
-        if (!allRepos) return res.status(401).json({ error: 'Failed to fetch repos' });
+        if (!allRepos) return sendJsonError(res, 401, 'unauthenticated', 'Failed to fetch repos');
 
         const eligible = allRepos.filter(r => !r.archived && !r.fork && r.name !== username);
 
@@ -181,13 +182,12 @@ export default async (req, res) => {
         } else {
             const configResult = await readConfig(token, username);
             if (!configResult) {
-                return res.status(400).json({
-                    error: 'No .pretty-readme.json found in your profile repo. Add a config with a "repos" allowlist first.',
-                });
+                return sendJsonError(res, 400, 'bad_request',
+                    'No .pretty-readme.json found in your profile repo. Add a config with a "repos" allowlist first.');
             }
             const allowlist = new Set(configResult.config.repos ?? []);
             if (allowlist.size === 0) {
-                return res.status(400).json({ error: '.pretty-readme.json "repos" list is empty.' });
+                return sendJsonError(res, 400, 'bad_request', '.pretty-readme.json "repos" list is empty.');
             }
             targets = eligible.filter(r => allowlist.has(r.name));
             log(`Scope: allowlist — ${[...allowlist].join(', ')} (${targets.length} matched).`);
@@ -407,6 +407,6 @@ export default async (req, res) => {
     } catch (err) {
         console.error('[apply-all]', err.message);
         if (send) { send({ type: 'error', msg: err.message }); res.end(); }
-        else res.status(500).json({ error: err.message });
+        else sendJsonError(res, 500, 'internal_error', err.message);
     }
 };

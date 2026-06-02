@@ -16,6 +16,7 @@ import { readConfig, resolveEnabledTiles }  from '../src/github/config.js';
 import { GoogleGenerativeAI }              from '@google/generative-ai';
 import { previewCache }                    from '../src/preview-cache.js';
 import { scanCache }                      from '../src/scan-cache.js';
+import { sendJsonError, boolParam }       from './_shared.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -587,16 +588,16 @@ export default async (req, res) => {
             const userRes = await fetch('https://api.github.com/user', {
                 headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
             });
-            if (!userRes.ok) return res.status(401).json({ error: 'Invalid token' });
+            if (!userRes.ok) return sendJsonError(res, 401, 'invalid_token', 'Invalid token');
             username = (await userRes.json()).login;
         } catch {
-            return res.status(401).json({ error: 'Failed to verify token' });
+            return sendJsonError(res, 401, 'invalid_token', 'Failed to verify token');
         }
     }
 
-    if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
+    if (!token || !username) return sendJsonError(res, 401, 'unauthenticated', 'Not authenticated');
 
-    const dryRun = req.query.dry_run === 'true';
+    const dryRun = boolParam(req.query.dry_run);
     const isSSE  = req.headers.accept?.includes('text/event-stream');
 
     if (isSSE) {
@@ -631,7 +632,7 @@ export default async (req, res) => {
         const README_PATH = 'README.md';
 
         const readmeFile = await getFile(token, repo, README_PATH);
-        if (!readmeFile) return res.status(404).json({ error: `Profile repo ${repo} not found or README.md missing` });
+        if (!readmeFile) return sendJsonError(res, 404, 'not_found', `Profile repo ${repo} not found or README.md missing`);
 
         let readme = Buffer.from(readmeFile.content, 'base64').toString('utf8');
 
@@ -718,6 +719,6 @@ jobs:
     } catch (err) {
         console.error('[apply-readme]', err.message);
         if (send) { send({ type: 'error', msg: err.message }); res.end(); }
-        else res.status(500).json({ error: err.message });
+        else sendJsonError(res, 500, 'internal_error', err.message);
     }
 };
