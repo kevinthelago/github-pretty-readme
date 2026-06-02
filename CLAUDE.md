@@ -117,10 +117,13 @@ Tests use **vitest** and live in `src/tests/` (`smoke.test.js`,
 (`.github/workflows/ci.yml`) runs these on pull requests.
 
 **Coverage thresholds** are enforced by `vitest.config.js` and gate CI: lines 55%,
-branches 75%, functions 60%, statements 55%. `npm run test:coverage` exits non-zero
+branches 45%, functions 60%, statements 55%. `npm run test:coverage` exits non-zero
 below any of these. They are a conservative *floor* set just under current coverage
 to protect in-flight work — raise them as streams land rather than letting coverage
-regress. Any change to these or to `ci.yml` is coordinated through the director.
+regress. Any change to these or to `ci.yml` is coordinated through the director. (The
+`branches` floor was recalibrated 75% → 45% when the project moved to vitest 4, whose
+coverage-v8 uses accurate AST-aware branch remapping instead of v8's inflated native
+counting — a measurement change, not a relaxation of the real bar.)
 
 ## Incomplete / Stub Files
 
