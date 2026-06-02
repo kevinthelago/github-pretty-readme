@@ -16,7 +16,16 @@ const CONFIG_PATH = '.pretty-readme.json';
  * config file) renders exactly as before. Keys are the canonical tile ids
  * shared across the preview and apply flows.
  */
-export const ACCOUNT_TILES = ['contributionGraph', 'statsCard', 'languageTrend', 'socialLinks'];
+export const ACCOUNT_TILES = [
+    'contributionGraph',
+    'statsCard',
+    'languageTrend',
+    'socialLinks',
+    'activeLanguages',
+    'topRepos',
+    'activityClock',
+    'wakatime',
+];
 
 /**
  * Resolve which optional account tiles are enabled for a given config object.
