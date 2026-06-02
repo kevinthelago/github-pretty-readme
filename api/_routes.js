@@ -45,6 +45,12 @@ import statsCard                  from './stats-card.js';
 import repositoryReadme           from './repository-readme.js';
 import activeLanguages            from './active-languages.js';
 import activityClock              from './activity-clock.js';
+import languageTrend              from './language-trend.js';
+import socialLinks                from './social-links.js';
+import repoTechBadges             from './repo-tech-badges.js';
+import repoCard                   from './repo-card.js';
+import repoActivity               from './repo-activity.js';
+import topRepos                   from './top-repos.js';
 import healthz                    from './healthz.js';
 import { getConfig, putConfig }                          from './config.js';
 import { authGithub, authCallback, authLogout, authMe }  from './auth.js';
@@ -98,6 +104,16 @@ export const routes = [
     { method: 'get', path: '/activity-clock',           handler: activityClock,          rateLimit: true },
     { method: 'get', path: '/monkeytype', handler: monkeytype, rateLimit: true },
     { method: 'get', path: '/wakatime',   handler: wakatime,   rateLimit: true },
+
+    // Built-but-unregistered endpoints — completes the #52 registry intent: the
+    // handlers existed (with their own `route` descriptors) but were never mounted
+    // here, so express.js never served them. Issues #40/#41/#43/#44/#45/#66.
+    { method: 'get', path: '/language-trend',   handler: languageTrend,  rateLimit: true },
+    { method: 'get', path: '/social-links',     handler: socialLinks,    rateLimit: true },
+    { method: 'get', path: '/repo-tech-badges', handler: repoTechBadges, rateLimit: true },
+    { method: 'get', path: '/repo-card',        handler: repoCard,       rateLimit: true },
+    { method: 'get', path: '/repo-activity',    handler: repoActivity,   rateLimit: true },
+    { method: 'get', path: '/top-repos',        handler: topRepos,       rateLimit: true },
 
     // Auth-gated data endpoints (requireAuth runs first; authed sessions are
     // exempt from the limiter, so these need no rateLimit flag).
