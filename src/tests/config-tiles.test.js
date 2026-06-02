@@ -28,4 +28,15 @@ describe('resolveEnabledTiles', () => {
         const allOn = { tiles: Object.fromEntries(ACCOUNT_TILES.map((k) => [k, true])) };
         expect(resolveEnabledTiles(allOn)).toEqual(ACCOUNT_TILES);
     });
+
+    test('the four Phase 5 tiles (#70) are advertised and opt-in', () => {
+        const phase5 = ['activeLanguages', 'topRepos', 'activityClock', 'wakatime'];
+        // each is a recognised tile id
+        phase5.forEach((id) => expect(ACCOUNT_TILES).toContain(id));
+        // off by default — absent from a config with no tiles block
+        phase5.forEach((id) => expect(resolveEnabledTiles({})).not.toContain(id));
+        // enabled only when set to true
+        const config = { tiles: { activeLanguages: true, topRepos: true, activityClock: true, wakatime: true } };
+        expect(resolveEnabledTiles(config)).toEqual(phase5);
+    });
 });

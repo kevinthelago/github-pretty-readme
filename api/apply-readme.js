@@ -12,6 +12,15 @@ import { renderLanguageTrend }              from '../src/tiles/language-trend.js
 import { renderSocialLinks }                from '../src/tiles/social-links.js';
 import { buildDataset as buildLanguageTrendDataset } from './language-trend.js';
 import { badgesFromConfig as buildSocialBadges }     from './social-links.js';
+import { renderActiveLanguages }            from '../src/tiles/active-languages.js';
+import { renderTopRepos }                   from '../src/tiles/top-repos.js';
+import { renderActivityClock }              from '../src/tiles/activity-clock.js';
+import { renderWakatimeChart }              from '../src/tiles/wakatime-chart.js';
+import { getRecentLanguageWeights }         from '../src/github/recent-languages.js';
+import { getContributionTimes }             from '../src/github/contribution-times.js';
+import { getTimeByLanguage, createWakatimeClient } from '../src/wakatime/client.js';
+import { selectRepos }                      from './top-repos.js';
+import { toCardData }                       from './repo-card.js';
 import { readConfig, resolveEnabledTiles }  from '../src/github/config.js';
 import { GoogleGenerativeAI }              from '@google/generative-ai';
 import { previewCache }                    from '../src/preview-cache.js';
@@ -413,6 +422,11 @@ const renderInsights = (rating, insights, repos, recommendations = '') => {
 const LANGUAGE_TREND_REPO_CAP = 40;
 const LANGUAGE_TREND_LANG_LIMIT = 6;
 
+// Defaults mirror the Phase 5 endpoints (/active-languages, /top-repos, /wakatime).
+const ACTIVE_LANGUAGES_DAYS = 90;   // matches /active-languages default window
+const TOP_REPOS_LIMIT       = 6;    // matches /top-repos DEFAULT_LIMIT
+const WAKATIME_RANGE        = 'last_7_days'; // matches /wakatime default range
+
 /**
  * Builders for the opt-in account tiles, keyed by the canonical tile id used in
  * `.pretty-readme.json`. Each builder receives a context `{ token, username,
@@ -429,6 +443,21 @@ const ACCOUNT_TILE_BUILDERS = {
         renderLanguageTrend(await buildLanguageTrendDataset(repos, token, LANGUAGE_TREND_REPO_CAP, LANGUAGE_TREND_LANG_LIMIT)),
     socialLinks: async ({ config }) =>
         renderSocialLinks(buildSocialBadges(config?.social)),
+    activeLanguages: async ({ token, username }) =>
+        renderActiveLanguages(
+            (await getRecentLanguageWeights(username, { days: ACTIVE_LANGUAGES_DAYS, token }))
+                ?? { langs: [], totalCommits: 0, days: ACTIVE_LANGUAGES_DAYS },
+        ),
+    topRepos: async ({ repos }) =>
+        renderTopRepos(selectRepos(repos, { limit: TOP_REPOS_LIMIT }).map(toCardData)),
+    activityClock: async ({ token, username }) =>
+        renderActivityClock(await getContributionTimes(username, token), undefined, { username }),
+    wakatime: async ({ wakatimeKey }) => {
+        if (!wakatimeKey) throw new Error('WakaTime not connected');
+        const languages = await getTimeByLanguage(WAKATIME_RANGE, createWakatimeClient({ apiKey: wakatimeKey }));
+        if (!languages || languages.length === 0) throw new Error('no WakaTime language data');
+        return renderWakatimeChart(languages, { range: WAKATIME_RANGE });
+    },
 };
 
 /** Asset path + alt text per tile, used when injecting into the profile README. */
@@ -437,6 +466,10 @@ const ACCOUNT_TILE_ASSETS = {
     statsCard:         { asset: 'assets/stats-card.svg',         alt: 'GitHub Stats',       marker: 'stats' },
     languageTrend:     { asset: 'assets/language-trend.svg',     alt: 'Language Trend',     marker: 'language-trend' },
     socialLinks:       { asset: 'assets/social-links.svg',       alt: 'Social Links',       marker: 'social-links' },
+    activeLanguages:   { asset: 'assets/active-languages.svg',   alt: 'Active Languages',   marker: 'active-languages' },
+    topRepos:          { asset: 'assets/top-repos.svg',          alt: 'Top Repositories',   marker: 'top-repos' },
+    activityClock:     { asset: 'assets/activity-clock.svg',     alt: 'Activity Clock',     marker: 'activity-clock' },
+    wakatime:          { asset: 'assets/wakatime.svg',           alt: 'WakaTime',           marker: 'wakatime' },
 };
 
 /**
@@ -478,7 +511,7 @@ export async function buildAccountTiles(ctx, log = () => {}) {
 
 // ── Core profile generator ────────────────────────────────────────────────────
 
-export async function generateProfile(token, username, monkeyOptions = {}, onProgress = null) {
+export async function generateProfile(token, username, monkeyOptions = {}, onProgress = null, extraOptions = {}) {
     const steps = [];
     const emit  = (pct, msg) => { onProgress?.({ pct, msg }); };
     const log   = (msg) => { steps.push(msg); console.log(`[apply-readme] ${msg}`); };
@@ -560,7 +593,7 @@ export async function generateProfile(token, username, monkeyOptions = {}, onPro
 
     emit(64, 'Rendering account tiles…');
     log('Rendering opt-in account tiles…');
-    const accountTiles = await buildAccountTiles({ token, username, repos }, log);
+    const accountTiles = await buildAccountTiles({ token, username, repos, wakatimeKey: extraOptions.wakatimeKey ?? null }, log);
     if (Object.keys(accountTiles).length) log(`Enabled account tiles: ${Object.keys(accountTiles).join(', ')}`);
 
     emit(68, 'Generating recommendations…');
@@ -613,13 +646,16 @@ export default async (req, res) => {
             apiKey:   req.session?.monkeytype_key ?? process.env.MONKEYTYPE_API_KEY ?? null,
             username: req.session?.monkeytype_username ?? process.env.MONKEYTYPE_USERNAME ?? null,
         };
+        const extraOptions = {
+            wakatimeKey: req.session?.wakatime_key ?? process.env.WAKATIME_API_KEY ?? null,
+        };
 
         const onProgress = send ? ({ pct, msg }) => send({ type: 'progress', pct, msg }) : null;
 
         // Reuse cached preview if available so we don't regenerate on every apply
         const cachedProfile = previewCache.get(username);
         if (cachedProfile) send?.({ type: 'progress', pct: 80, msg: 'Using cached profile data…' });
-        const profile = cachedProfile ?? await generateProfile(token, username, monkeyOptions, onProgress);
+        const profile = cachedProfile ?? await generateProfile(token, username, monkeyOptions, onProgress, extraOptions);
         if (!cachedProfile) previewCache.set(username, profile);
 
         if (dryRun) {
@@ -643,6 +679,10 @@ export default async (req, res) => {
             { key: 'stats',     start: '<!-- stats-start -->',        end: '<!-- stats-end -->',   optional: true, enabled: () => !!profile.accountTiles?.statsCard },
             { key: 'language',  start: '<!-- language-trend-start -->', end: '<!-- language-trend-end -->', optional: true, enabled: () => !!profile.accountTiles?.languageTrend },
             { key: 'social',    start: '<!-- social-links-start -->', end: '<!-- social-links-end -->', optional: true, enabled: () => !!profile.accountTiles?.socialLinks },
+            { key: 'active-languages', start: '<!-- active-languages-start -->', end: '<!-- active-languages-end -->', optional: true, enabled: () => !!profile.accountTiles?.activeLanguages },
+            { key: 'top-repos', start: '<!-- top-repos-start -->',     end: '<!-- top-repos-end -->',     optional: true, enabled: () => !!profile.accountTiles?.topRepos },
+            { key: 'activity-clock', start: '<!-- activity-clock-start -->', end: '<!-- activity-clock-end -->', optional: true, enabled: () => !!profile.accountTiles?.activityClock },
+            { key: 'wakatime-tile', start: '<!-- wakatime-start -->',   end: '<!-- wakatime-end -->',   optional: true, enabled: () => !!profile.accountTiles?.wakatime },
             { key: 'monkeytype',start: '<!-- monkeytype-start -->',   end: '<!-- monkeytype-end -->', optional: true, enabled: () => !!profile.monkeytypeSvg },
             { key: 'charts',    start: '<!-- tech-charts-start -->',   end: '<!-- tech-charts-end -->' },
             { key: 'badges',    start: '<!-- tech-start -->',          end: '<!-- tech-end -->' },

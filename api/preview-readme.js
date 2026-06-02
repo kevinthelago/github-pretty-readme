@@ -39,7 +39,10 @@ export default async (req, res) => {
             apiKey:   req.session.monkeytype_key   ?? null,
             username: req.session.monkeytype_username ?? null,
         };
-        const profile = await generateProfile(token, username, monkeyOptions);
+        const extraOptions = {
+            wakatimeKey: req.session.wakatime_key ?? process.env.WAKATIME_API_KEY ?? null,
+        };
+        const profile = await generateProfile(token, username, monkeyOptions, null, extraOptions);
         previewCache.set(username, profile);
         return res.json({
             ok:            true,

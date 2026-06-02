@@ -13,11 +13,17 @@ vi.mock('../github/graphql.js', () => ({
 }));
 vi.mock('../../api/language-trend.js', () => ({ buildDataset: vi.fn() }));
 vi.mock('../../api/social-links.js', () => ({ badgesFromConfig: vi.fn() }));
+vi.mock('../github/recent-languages.js', () => ({ getRecentLanguageWeights: vi.fn() }));
+vi.mock('../github/contribution-times.js', () => ({ getContributionTimes: vi.fn() }));
+vi.mock('../wakatime/client.js', () => ({ getTimeByLanguage: vi.fn(), createWakatimeClient: vi.fn(() => ({})) }));
 
 import { readConfig, resolveEnabledTiles } from '../github/config.js';
 import { getContributionCalendar, getUserStats } from '../github/graphql.js';
 import { buildDataset } from '../../api/language-trend.js';
 import { badgesFromConfig } from '../../api/social-links.js';
+import { getRecentLanguageWeights } from '../github/recent-languages.js';
+import { getContributionTimes } from '../github/contribution-times.js';
+import { getTimeByLanguage } from '../wakatime/client.js';
 import { buildAccountTiles } from '../../api/apply-readme.js';
 
 const calendar = { totalContributions: 1, weeks: [{ contributionDays: [{ weekday: 0, contributionCount: 1, color: '#39d353' }] }] };
@@ -80,5 +86,48 @@ describe('buildAccountTiles', () => {
         readConfig.mockRejectedValue(new Error('config 500'));
         const tiles = await buildAccountTiles(ctx());
         expect(tiles).toEqual({});
+    });
+});
+
+describe('buildAccountTiles — Phase 5 opt-in tiles (#70)', () => {
+    test('renders the four Phase 5 tiles when enabled', async () => {
+        resolveEnabledTiles.mockReturnValue(['activeLanguages', 'topRepos', 'activityClock', 'wakatime']);
+        getRecentLanguageWeights.mockResolvedValue({ langs: [{ language: 'JavaScript', count: 5 }], totalCommits: 5, days: 90 });
+        getContributionTimes.mockResolvedValue([new Date('2024-01-01T10:00:00Z').toISOString()]);
+        getTimeByLanguage.mockResolvedValue([{ name: 'JavaScript', total_seconds: 3600, percent: 100 }]);
+
+        const repos = [{ name: 'r', owner: { login: 'kev' }, stargazers_count: 9, fork: false, language: 'JavaScript' }];
+        const tiles = await buildAccountTiles(ctx({ repos, wakatimeKey: 'waka-key' }));
+
+        expect(Object.keys(tiles).sort()).toEqual(['activeLanguages', 'activityClock', 'topRepos', 'wakatime']);
+        expect(tiles.activeLanguages).toContain('<svg');
+        expect(tiles.topRepos).toContain('<svg');
+        expect(tiles.activityClock).toContain('<svg');
+        expect(tiles.wakatime).toContain('<svg');
+        // active-languages reuses the recent-language weighting with the apply default window
+        expect(getRecentLanguageWeights).toHaveBeenCalledWith('kev', { days: 90, token: 'tok' });
+    });
+
+    test('Phase 5 tiles are absent when their flag is off (opt-in)', async () => {
+        resolveEnabledTiles.mockReturnValue([]);
+        const tiles = await buildAccountTiles(ctx({ wakatimeKey: 'waka-key' }));
+        expect(tiles).toEqual({});
+        expect(getRecentLanguageWeights).not.toHaveBeenCalled();
+        expect(getContributionTimes).not.toHaveBeenCalled();
+        expect(getTimeByLanguage).not.toHaveBeenCalled();
+    });
+
+    test('wakatime tile is skipped (not fatal) when no key is connected', async () => {
+        resolveEnabledTiles.mockReturnValue(['wakatime']);
+        const tiles = await buildAccountTiles(ctx({ wakatimeKey: null }));
+        expect(tiles).toEqual({});
+        expect(getTimeByLanguage).not.toHaveBeenCalled();
+    });
+
+    test('active-languages falls back to an empty tile when weighting returns null', async () => {
+        resolveEnabledTiles.mockReturnValue(['activeLanguages']);
+        getRecentLanguageWeights.mockResolvedValue(null);
+        const tiles = await buildAccountTiles(ctx());
+        expect(tiles.activeLanguages).toContain('<svg');
     });
 });
