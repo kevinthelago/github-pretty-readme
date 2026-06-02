@@ -48,6 +48,7 @@ import { getConfig, putConfig }                          from './config.js';
 import { authGithub, authCallback, authLogout, authMe }  from './auth.js';
 import { monkeytypeConnect, monkeytypeDisconnect }       from './monkeytype-connect.js';
 import { wakatimeConnect, wakatimeDisconnect }           from './wakatime-connect.js';
+import { createToken, getTokens, deleteToken }           from './tokens.js';
 
 /** @type {Array<{ method: 'get'|'put'|'post', path: string, handler: Function, auth?: boolean, rateLimit?: boolean }>} */
 export const routes = [
@@ -64,6 +65,11 @@ export const routes = [
     // Profile preview (generates + caches all assets) and apply
     { method: 'get', path: '/preview-readme', handler: previewReadme, auth: true },
     { method: 'get', path: '/apply-readme',   handler: applyReadme,   auth: true },
+
+    // API tokens (auth) — mint/list/revoke long-lived tokens for headless automation (#58)
+    { method: 'post',   path: '/tokens',     handler: createToken, auth: true },
+    { method: 'get',    path: '/tokens',     handler: getTokens,   auth: true },
+    { method: 'delete', path: '/tokens/:id', handler: deleteToken, auth: true },
 
     // Monkeytype session connect/disconnect
     { method: 'post', path: '/monkeytype/connect',    handler: monkeytypeConnect },

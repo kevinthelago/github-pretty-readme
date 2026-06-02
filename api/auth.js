@@ -63,6 +63,9 @@ export const authMe = (req, res) => {
     });
 };
 
-// Browser-facing guard: allow a session cookie or a PAT Bearer header (used by
-// scheduled GitHub Actions workflows), otherwise redirect to the landing page.
+// Browser-facing guard. The shared factory (src/util/http.js) does the work:
+// a session cookie passes through; a Bearer API token is verified against the
+// token store (#58/#59) and, when valid, populates the same session context a
+// signed-in user would have; an invalid/revoked token is rejected 401; an
+// unauthenticated browser is redirected to the landing page.
 export const requireAuth = makeRequireAuth({ onFail: 'redirect' });

@@ -11,6 +11,8 @@
  * Success responses are deliberately left untouched by these helpers.
  */
 
+import { verifyToken } from '../auth/tokens.js';
+
 const XML_ESCAPES = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' };
 const escapeXml = (str) => String(str ?? '').replace(/[<>&"']/g, (c) => XML_ESCAPES[c]);
 
@@ -101,13 +103,34 @@ export const resolveAuth = (req, { allowEnv = false } = {}) => {
 /**
  * Express middleware factory that gates a route behind authentication.
  *
+ * Order of precedence:
+ *   1. An existing signed-in session (`session.github_token`) passes through.
+ *   2. A Bearer API token is verified against the token store (#58). A valid
+ *      token populates the same request context downstream handlers read —
+ *      `session.github_token` + `session.github_username` — so token-driven
+ *      automation behaves exactly like a signed-in user.
+ *   3. An invalid or revoked Bearer token is rejected with 401. A bare
+ *      `Bearer ...` header is NOT trusted on its own (#59 closed that bypass).
+ *   4. Requests with no credentials fail per `onFail`.
+ *
  * @param {{ onFail?: 'redirect'|'json', redirectTo?: string }} [opts]
  *   `onFail='redirect'` (default) sends browsers to `redirectTo`; `onFail='json'`
  *   responds 401 with the standard JSON error envelope (use for XHR/API routes).
  * @returns {import('express').RequestHandler}
  */
 export const requireAuth = ({ onFail = 'redirect', redirectTo = '/' } = {}) => (req, res, next) => {
-    if (resolveAuth(req).token) return next();
+    if (req.session?.github_token) return next();
+
+    const token = bearerToken(req);
+    if (token) {
+        const record = verifyToken(token);
+        if (!record) return res.status(401).json({ error: 'Invalid or revoked token' });
+        req.session = req.session ?? {};
+        req.session.github_token    = record.githubToken;
+        req.session.github_username = record.login;
+        return next();
+    }
+
     if (onFail === 'json') return sendJsonError(res, 401, 'unauthenticated', 'Not authenticated');
     return res.redirect(redirectTo);
 };

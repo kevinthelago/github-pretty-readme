@@ -432,7 +432,7 @@ jobs:
       - name: Trigger full update
         run: |
           curl -fsSL \
-            -H "Cookie: session=${{ secrets.PRETTY_README_SESSION }}" \
+            -H "Authorization: Bearer ${{ secrets.PRETTY_README_TOKEN }}" \
             "${{ secrets.PRETTY_README_URL }}/apply-all?score=true&readme=true&topics=true&descriptions=true"
 ```
 
@@ -441,9 +441,17 @@ jobs:
 | Secret | Value |
 |:--|:--|
 | `PRETTY_README_URL` | Your deployed service URL, e.g. `https://github-pretty-readme-xxx-uc.a.run.app` |
-| `PRETTY_README_SESSION` | Your session cookie value — copy it from DevTools → Application → Cookies after signing in |
+| `PRETTY_README_TOKEN` | A long-lived API token. Sign in to your instance, then `POST /tokens` to mint one (returned once) — see [self-hosting](docs/self-hosting.md#6--daily-profile-update-automation). Revoke any time with `DELETE /tokens/:id`. |
 
-> **Tip:** Session cookies expire after 7 days. Re-copy the cookie value after each re-login, or use the hosted app at [github-pretty-readme](https://github.com/kevinthelago/github-pretty-readme) to trigger runs manually.
+> **Tip:** API tokens do not expire — mint one and store it as the
+> `PRETTY_README_TOKEN` secret. They are revocable, so rotate by minting a new
+> token and deleting the old.
+>
+> **Deprecated:** the previous `PRETTY_README_SESSION` cookie path is no longer
+> recommended. A copied session cookie still works until it expires (7 days),
+> but the convenient `Authorization: Bearer <any-value>` shortcut that some
+> setups relied on has been removed — the service now verifies the Bearer token
+> against its token store. Switch to a minted `PRETTY_README_TOKEN`.
 
 ### What each run does
 
