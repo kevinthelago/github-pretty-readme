@@ -12,7 +12,7 @@ The application relies on several environment variables for configuration and AP
 | :-------------------------- | :------------------------------------------------------------------------------------------------------ | :----------------------------- |
 | `SESSION_SECRET`            | Secret key used by `express-session` for signing the session ID cookie.                                 | Yes (has dev default)          |
 | `NODE_ENV`                  | Determines if session cookies should be secure (HTTPS only). Set to `production` for secure cookies.    | No (defaults to `development`) |
-| `PORT` or `port`            | The port on which the Express server will listen.                                                       | No (defaults to `8080`)        |
+| `PORT` or `port`            | The port on which the Express server will listen.                                                       | No (defaults to `8088`)        |
 | `GOOGLE_AI_STUDIO_KEY`      | API key for Google's Generative AI Studio (Gemini model) for AI-powered features.                       | Yes (for AI features)          |
 | `GITHUB_TOKEN`              | GitHub Personal Access Token used for accessing GitHub API data without user authentication (fallback). | No (recommended for public API access) |
 | `GITHUB_APP_CLIENT_ID`      | Client ID for your GitHub OAuth App, used for user authentication.                                      | Yes (for GitHub OAuth)         |
@@ -34,7 +34,7 @@ To run the server locally:
     ```bash
     npm start
     ```
-    The server will start on the port specified in `PORT` or `8080` by default.
+    The server will start on the port specified in `PORT` or `8088` by default.
 
 To generate a set of example SVG tiles to the `preview/` directory, configure `preview.config.js` and run:
 
@@ -45,6 +45,8 @@ npm run preview
 ## Endpoints
 
 This section describes the API endpoints, their purpose, accepted query parameters, and examples. Most SVG/data endpoints can be used without user authentication if `GITHUB_TOKEN` is set in your environment, otherwise, they require an authenticated user session. Endpoints that modify GitHub data *always* require an authenticated user session.
+
+The full route list lives in [`api/_routes.js`](api/_routes.js) (the source of truth). Auth-gated endpoints accept **either** a signed-in session cookie **or** an `Authorization: Bearer <token>` header carrying a [minted API token](#api-token-endpoints). The public SVG/data endpoints are **rate-limited** for anonymous traffic (default 60 requests / 60 s per IP+token; configurable via `RATE_LIMIT_WINDOW_MS` / `RATE_LIMIT_MAX` / `RATE_LIMIT_DISABLED`); authenticated sessions are exempt. Over-limit requests get a **429** with `Retry-After` and `X-RateLimit-*` headers. The single-page UI is served at the site root `/` (there is no `/dashboard` route). See [`docs/api.md`](docs/api.md) for the complete reference.
 
 ### Authentication Endpoints
 
@@ -58,7 +60,7 @@ Initiates the GitHub OAuth flow. Redirects the user to GitHub for authorization.
 
 **Example URL:**
 ```
-http://localhost:8080/auth/github
+http://localhost:8088/auth/github
 ```
 
 #### GET /auth/callback
@@ -74,7 +76,7 @@ The callback URI for GitHub OAuth. Exchanges the authorization code for an acces
 
 **Example URL:**
 ```
-http://localhost:8080/auth/callback?code=YOUR_CODE&state=YOUR_STATE
+http://localhost:8088/auth/callback?code=YOUR_CODE&state=YOUR_STATE
 ```
 
 #### GET /auth/logout
@@ -85,7 +87,7 @@ Destroys the user's session, effectively logging them out.
 
 **Example URL:**
 ```
-http://localhost:8080/auth/logout
+http://localhost:8088/auth/logout
 ```
 
 #### GET /auth/me
@@ -96,21 +98,36 @@ Returns JSON data about the currently authenticated GitHub user. Requires an act
 
 **Example URL:**
 ```
-http://localhost:8080/auth/me
+http://localhost:8088/auth/me
 ```
 
-### Dashboard Endpoint
+### API Token Endpoints
 
-#### GET /dashboard
+Long-lived tokens for headless automation (cron, CI). All require an authenticated **session** (you mint a token while signed in), then the token is sent as `Authorization: Bearer <token>` to any auth-gated endpoint. Tokens are stored only as SHA-256 hashes, are in-memory (do not survive a restart), and never expire -- revoke to rotate.
 
-Renders the dashboard HTML page for authenticated users. Requires an active session.
+#### POST /tokens
 
-**Query Parameters:** None.
+Mints a new API token. Optional JSON body `{ "label": "ci" }`. Returns **201** `{ token, id, login, label, createdAt, lastUsedAt }` -- the `token` is shown **exactly once**.
 
-**Example URL:**
-```
-http://localhost:8080/dashboard
-```
+#### GET /tokens
+
+Lists the signed-in user's tokens as metadata (never the secret): `{ tokens: [...] }`.
+
+#### DELETE /tokens/:id
+
+Revokes one of the signed-in user's tokens. **204** on success, `404` for an unknown id.
+
+### Config Endpoints
+
+Manage the `.pretty-readme.json` allowlist in your profile repo. Both require an authenticated session.
+
+#### GET /config
+
+Returns `{ config, exists }` -- the parsed `.pretty-readme.json`, or `null` when absent.
+
+#### PUT /config
+
+Writes the allowlist. JSON body `{ "repos": ["repo-a", "repo-b"] }`. Returns `{ ok: true }`; `400` when `repos` is not an array.
 
 ### Profile Update Endpoint
 
@@ -126,8 +143,70 @@ Generates and pushes various SVG graphics and markdown content to the user's Git
 
 **Example URL (Dry Run):**
 ```
-http://localhost:8080/apply-readme?dry_run=true
+http://localhost:8088/apply-readme?dry_run=true
 ```
+
+#### GET /preview-readme
+
+Generates (or returns cached) the full profile preview -- bio, all SVGs, opt-in account tiles, and the insights markdown -- as JSON. Requires an active session. Pass `refresh=true` to bypass the cache.
+
+**Example URL:**
+```
+http://localhost:8088/preview-readme?refresh=true
+```
+
+#### GET /apply-all
+
+Applies enabled features across selected repos: pushes `SCORE.md` / `README.md` via a per-repo pull request on a `pretty-readme/YYYY-MM-DD` branch, and applies topics/descriptions immediately. Skips repos whose HEAD SHA is unchanged since the last run (tracked in `.pretty-readme-state.json`). Supports Server-Sent Events when the request `Accept`s `text/event-stream`. Requires an active session (or a Bearer API token for cron).
+
+**Query Parameters:**
+
+| Name           | Default | Description |
+| :------------- | :------ | :---------- |
+| `repos`        |         | Comma-separated repo names, or `*` for all eligible repos. When absent, the `.pretty-readme.json` allowlist is required (cron mode). |
+| `score`        | `false` | Generate and push `SCORE.md` per repo (via PR). |
+| `readme`       | `false` | Generate and push `README.md` per repo (via PR). |
+| `topics`       | `false` | Suggest and apply GitHub topics (immediately). |
+| `descriptions` | `false` | Suggest and apply descriptions (immediately). |
+| `workflow`     | `false` | Push a daily `pretty-readme-score.yml` workflow per repo (via PR). |
+
+#### GET /repos
+
+Returns a lightweight JSON list of the authenticated user's repos (`name`, `description`, `language`, `isProfile`, `stars`, `pushedAt`), profile repo first. Requires an active session.
+
+#### GET /repo-scan
+
+Scans a repo (file tree, key files, source samples), grades code quality across six dimensions, and returns the analysis (suggested topics, README outline, prioritised suggestions). Cached per user/repo for 4 hours. Requires an active session.
+
+**Query Parameters:**
+
+| Name      | Default | Description |
+| :-------- | :------ | :---------- |
+| `repo`    |         | **Required.** Repo name. |
+| `refresh` | `false` | `true` forces a fresh scan, bypassing the cache. |
+
+#### GET /repository-readme
+
+Generates a README **preview** for a single repo -- the rendered markdown plus the underlying analysis -- so the UI can preview before applying. Reuses the shared scan cache. Requires an active session.
+
+**Query Parameters:**
+
+| Name      | Default | Description |
+| :-------- | :------ | :---------- |
+| `repo`    |         | **Required.** `repo` or `owner/repo`. |
+| `refresh` | `false` | `true` forces a fresh scan. |
+
+#### GET /repo-apply
+
+Pushes `SCORE.md` directly to a single target repo, optionally a generated `README.md`, and optionally a daily score workflow. Uses cached scan data when available. Requires an active session (or a Bearer token for cron).
+
+**Query Parameters:**
+
+| Name       | Default | Description |
+| :--------- | :------ | :---------- |
+| `repo`     |         | **Required.** `repo` or `owner/repo`. |
+| `readme`   | `false` | Also generate and push `README.md` from the scan outline. |
+| `workflow` | `false` | Push `.github/workflows/pretty-readme-score.yml` (daily, 05:00 UTC) if absent. |
 
 ### Monkeytype Connection Endpoints
 
@@ -146,7 +225,7 @@ Connects a Monkeytype API key to the user's session. This key is then used for `
 
 **Example (using `curl`):**
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"api_key": "YOUR_API_KEY", "username": "YourMTUsername"}' http://localhost:8080/monkeytype/connect
+curl -X POST -H "Content-Type: application/json" -d '{"api_key": "YOUR_API_KEY", "username": "YourMTUsername"}' http://localhost:8088/monkeytype/connect
 ```
 
 #### POST /monkeytype/disconnect
@@ -157,8 +236,31 @@ Removes the Monkeytype API key and username from the user's session.
 
 **Example (using `curl`):**
 ```bash
-curl -X POST http://localhost:8080/monkeytype/disconnect
+curl -X POST http://localhost:8088/monkeytype/disconnect
 ```
+
+### WakaTime Connection Endpoints
+
+These endpoints connect a WakaTime API key to your session for `GET /wakatime`. They mirror the Monkeytype connect/disconnect endpoints.
+
+#### POST /wakatime/connect
+
+Stores a WakaTime API key on the session.
+
+**Request Body Parameters:**
+
+| Name      | Default | Description |
+| :-------- | :------ | :---------- |
+| `api_key` |         | **Required.** Your WakaTime API key. `400` when missing. |
+
+**Example (using `curl`):**
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{"api_key": "waka_..."}' http://localhost:8088/wakatime/connect
+```
+
+#### POST /wakatime/disconnect
+
+Removes the WakaTime API key from the session. The `WAKATIME_API_KEY` env fallback (if set) remains in effect.
 
 ### SVG / Data Endpoints
 
@@ -178,9 +280,9 @@ Generates an SVG image displaying a developer account summary.
 
 **Example URLs:**
 ```
-http://localhost:8080/account-summary?username=octocat&background=cherry-blossom
-http://localhost:8080/account-summary?username=octocat&projects=top5
-http://localhost:8080/account-summary?username=octocat&projects=my-repo-1,my-repo-2
+http://localhost:8088/account-summary?username=octocat&background=cherry-blossom
+http://localhost:8088/account-summary?username=octocat&projects=top5
+http://localhost:8088/account-summary?username=octocat&projects=my-repo-1,my-repo-2
 ```
 
 #### GET /account-summary-md
@@ -191,7 +293,7 @@ Generates a plain text developer bio summary based on the authenticated user's r
 
 **Example URL:**
 ```
-http://localhost:8080/account-summary-md
+http://localhost:8088/account-summary-md
 ```
 
 #### GET /developer-rating
@@ -202,7 +304,7 @@ Generates an SVG image displaying the developer rating for the authenticated use
 
 **Example URL:**
 ```
-http://localhost:8080/developer-rating
+http://localhost:8088/developer-rating
 ```
 
 #### GET /developer-rating-insights
@@ -213,7 +315,38 @@ Generates a detailed Markdown report with developer rating insights and actionab
 
 **Example URL:**
 ```
-http://localhost:8080/developer-rating-insights
+http://localhost:8088/developer-rating-insights
+```
+
+#### GET /contribution-graph
+
+Generates an SVG contribution heatmap with current-streak, longest-streak, and total-contribution figures, sourced from the GitHub GraphQL contribution calendar.
+
+**Query Parameters:**
+
+| Name         | Default | Description |
+| :----------- | :------ | :---------- |
+| `username`   |         | GitHub username (falls back to the session user). |
+| `background` | `null`  | Theme: `cherry-blossom`, `geometric`, or `vapor-wave` (alias: `theme`). |
+
+**Example URL:**
+```
+http://localhost:8088/contribution-graph?username=octocat&background=geometric
+```
+
+#### GET /stats-card
+
+Generates an SVG stats card -- total stars, commits, pull requests, issues, followers, and repositories contributed to -- aggregated from the GitHub GraphQL API.
+
+**Query Parameters:**
+
+| Name       | Default | Description |
+| :--------- | :------ | :---------- |
+| `username` |         | GitHub username (falls back to the session user). |
+
+**Example URL:**
+```
+http://localhost:8088/stats-card?username=octocat
 ```
 
 #### GET /tech-summary
@@ -231,8 +364,8 @@ Generates an SVG image displaying a summary of the top technologies used by a us
 
 **Example URLs:**
 ```
-http://localhost:8080/tech-summary?background=geometric&limit=10&sort=frequency
-http://localhost:8080/tech-summary?background=vapor-wave&exclude=JavaScript,HTML
+http://localhost:8088/tech-summary?background=geometric&limit=10&sort=frequency
+http://localhost:8088/tech-summary?background=vapor-wave&exclude=JavaScript,HTML
 ```
 
 #### GET /tech-list
@@ -248,8 +381,8 @@ Returns a JSON list of technologies used by the authenticated user (or user asso
 
 **Example URLs:**
 ```
-http://localhost:8080/tech-list?sort=alpha
-http://localhost:8080/tech-list?exclude=CSS,Markdown
+http://localhost:8088/tech-list?sort=alpha
+http://localhost:8088/tech-list?exclude=CSS,Markdown
 ```
 
 #### GET /tech-chart
@@ -264,8 +397,8 @@ Generates an SVG chart visualizing programming language usage.
 
 **Example URLs:**
 ```
-http://localhost:8080/tech-chart?chart=donut
-http://localhost:8080/tech-chart?chart=spider
+http://localhost:8088/tech-chart?chart=donut
+http://localhost:8088/tech-chart?chart=spider
 ```
 
 #### GET /tech-spider
@@ -285,10 +418,10 @@ Generates a technology visualization SVG. This versatile endpoint can render spi
 
 **Example URLs:**
 ```
-http://localhost:8080/tech-spider?type=spider&categories=languages,databases,devops&limit=5
-http://localhost:8080/tech-spider?type=treemap&categories=languages,frameworks,cloud&limit=8
-http://localhost:8080/tech-spider?type=cards&categories=languages,frameworks,ai,databases&limit=12
-http://localhost:8080/tech-spider?type=grid&categories=languages,frameworks,cloud,ai&columns=2
+http://localhost:8088/tech-spider?type=spider&categories=languages,databases,devops&limit=5
+http://localhost:8088/tech-spider?type=treemap&categories=languages,frameworks,cloud&limit=8
+http://localhost:8088/tech-spider?type=cards&categories=languages,frameworks,ai,databases&limit=12
+http://localhost:8088/tech-spider?type=grid&categories=languages,frameworks,cloud,ai&columns=2
 ```
 
 #### GET /tech-categories
@@ -303,7 +436,7 @@ Returns a JSON list of technology categories that have at least one detected tec
 
 **Example URL:**
 ```
-http://localhost:8080/tech-categories?limit=5
+http://localhost:8088/tech-categories?limit=5
 ```
 
 #### GET /improve-topics
@@ -318,7 +451,7 @@ Uses AI to suggest and apply GitHub topics to repositories that have fewer than 
 
 **Example URL (Dry Run):**
 ```
-http://localhost:8080/improve-topics?dry_run=true
+http://localhost:8088/improve-topics?dry_run=true
 ```
 
 #### GET /improve-descriptions
@@ -333,7 +466,7 @@ Uses AI to suggest and apply descriptions to owned GitHub repositories that curr
 
 **Example URL (Dry Run):**
 ```
-http://localhost:8080/improve-descriptions?dry_run=true
+http://localhost:8088/improve-descriptions?dry_run=true
 ```
 
 #### GET /monkeytype
@@ -344,7 +477,33 @@ Generates an SVG chart visualizing Monkeytype typing speed personal bests across
 
 **Example URL:**
 ```
-http://localhost:8080/monkeytype
+http://localhost:8088/monkeytype
+```
+
+#### GET /wakatime
+
+Generates an SVG chart of coding time by language from the WakaTime API. Resolves the key from the session (`POST /wakatime/connect`) or the `WAKATIME_API_KEY` env var. `401` when no key is connected; `404` when the range has no data.
+
+**Query Parameters:**
+
+| Name    | Default       | Description |
+| :------ | :------------ | :---------- |
+| `range` | `last_7_days` | `last_7_days`, `last_30_days`, `last_6_months`, `last_year`, or `all_time`. |
+
+**Example URL:**
+```
+http://localhost:8088/wakatime?range=last_30_days
+```
+
+### Health
+
+#### GET /healthz
+
+Liveness/health probe. Unauthenticated, dependency-free, and never rate-limited (useful for Cloud Run health checks). Returns **200** `{ "status": "ok", "version": "<package version>" }`.
+
+**Example URL:**
+```
+http://localhost:8088/healthz
 ```
 
 ## Automated Updates (Cron Job)
@@ -400,8 +559,8 @@ you want to `true`:
 | :------------------ | :------ |
 | `contributionGraph` | Contribution heatmap + current/longest streak (`/contribution-graph`). |
 | `statsCard`         | Stars / commits / PRs / issues / followers / contributed-to card (`/stats-card`). |
-| `languageTrend`     | Cumulative language-usage-over-time stacked area chart (`/language-trend`). |
-| `socialLinks`       | Brand badges linking to your social profiles (`/social-links`), built from the `social` map below. |
+| `languageTrend`     | Cumulative language-usage-over-time stacked area chart (rendered at apply time; no standalone endpoint yet). |
+| `socialLinks`       | Brand badges linking to your social profiles, built from the `social` map below (rendered at apply time; no standalone endpoint yet). |
 
 The `socialLinks` tile reads the top-level `social` map — `platform: handle`
 pairs (e.g. `github`, `twitter`/`x`, `linkedin`, `devto`, `mastodon`, `email`,
