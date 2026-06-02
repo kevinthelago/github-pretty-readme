@@ -1,3 +1,5 @@
+import { requireAuth as makeRequireAuth, sendJsonError } from '../src/util/http.js';
+
 const CLIENT_ID     = process.env.GITHUB_APP_CLIENT_ID;
 const CLIENT_SECRET = process.env.GITHUB_APP_CLIENT_SECRET;
 const BASE_URL      = process.env.BASE_URL ?? 'http://localhost:8080';
@@ -51,7 +53,7 @@ export const authLogout = (req, res) => {
 };
 
 export const authMe = (req, res) => {
-    if (!req.session?.github_token) return res.status(401).json({ error: 'Not authenticated' });
+    if (!req.session?.github_token) return sendJsonError(res, 401, 'unauthenticated', 'Not authenticated');
     res.json({
         username:            req.session.github_username,
         avatar:              req.session.github_avatar,
@@ -61,9 +63,9 @@ export const authMe = (req, res) => {
     });
 };
 
-export const requireAuth = (req, res, next) => {
-    if (req.session?.github_token) return next();
-    // Allow PAT-based access for scheduled GitHub Actions workflows
-    if (req.headers.authorization?.startsWith('Bearer ')) return next();
-    return res.redirect('/');
-};
+// Browser-facing guard. The shared factory (src/util/http.js) does the work:
+// a session cookie passes through; a Bearer API token is verified against the
+// token store (#58/#59) and, when valid, populates the same session context a
+// signed-in user would have; an invalid/revoked token is rejected 401; an
+// unauthenticated browser is redirected to the landing page.
+export const requireAuth = makeRequireAuth({ onFail: 'redirect' });

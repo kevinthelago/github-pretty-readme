@@ -1,6 +1,7 @@
 import { renderTechTreemap } from '../src/tiles/tech-treemap.js';
 import { getAllRepos } from '../src/github/repos.js';
 import { buildTechSeries } from '../src/github/tech-data.js';
+import { resolveAuth, sendErrorSvg, intParam, listParam } from './_shared.js';
 
 /**
  * GET /tech-treemap
@@ -13,26 +14,24 @@ import { buildTechSeries } from '../src/github/tech-data.js';
 export default async (req, res) => {
     const {
         categories: categoriesParam = 'languages,frameworks,cloud',
-        limit: limitParam = '8',
-        exclude: excludeParam = '',
     } = req.query;
 
     res.setHeader('Content-Type', 'image/svg+xml');
 
     try {
-        const token = req.session?.github_token ?? process.env.GITHUB_TOKEN;
+        const { token } = resolveAuth(req, { allowEnv: true });
         const repos = await getAllRepos(token);
-        if (!repos) return res.status(401).send('GitHub not connected');
+        if (!repos) return sendErrorSvg(res, 'GitHub not connected');
 
-        const requestedCategories = categoriesParam.split(',').map(s => s.trim().toLowerCase());
-        const limit = Math.min(parseInt(limitParam, 10) || 8, 16);
-        const excluded = excludeParam ? excludeParam.split(',').map(s => s.trim().toLowerCase()) : [];
+        const requestedCategories = listParam(categoriesParam, { lowercase: true });
+        const limit = intParam(req.query.limit, 8, { min: 1, max: 16 });
+        const excluded = listParam(req.query.exclude, { lowercase: true });
 
         const series = buildTechSeries(repos, requestedCategories, limit, excluded);
-        if (series.length === 0) return res.status(400).send('No data for requested categories');
+        if (series.length === 0) return sendErrorSvg(res, 'No data for requested categories');
 
         return res.send(renderTechTreemap(series));
     } catch (err) {
-        return res.send(err.message);
+        return sendErrorSvg(res, err.message);
     }
 };

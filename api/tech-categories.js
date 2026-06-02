@@ -1,6 +1,7 @@
 import { getAllRepos } from '../src/github/repos.js';
 import { buildTechSeries } from '../src/github/tech-data.js';
 import { CATEGORY_META } from '../src/data/tech-taxonomy.js';
+import { resolveAuth, sendJsonError, intParam } from './_shared.js';
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_META);
 
@@ -12,15 +13,14 @@ const ALL_CATEGORIES = Object.keys(CATEGORY_META);
  *   limit   Max techs per category to consider (default: 8)
  */
 export default async (req, res) => {
-    const { limit: limitParam = '8' } = req.query;
-    const limit = parseInt(limitParam, 10) || 8;
+    const limit = intParam(req.query.limit, 8);
 
     res.setHeader('Content-Type', 'application/json');
 
     try {
-        const token = req.session?.github_token ?? process.env.GITHUB_TOKEN;
+        const { token } = resolveAuth(req, { allowEnv: true });
         const repos = await getAllRepos(token);
-        if (!repos) return res.status(401).json({ error: 'GitHub not connected' });
+        if (!repos) return sendJsonError(res, 401, 'unauthenticated', 'GitHub not connected');
 
         const series = buildTechSeries(repos, ALL_CATEGORIES, limit, []);
 
@@ -31,6 +31,6 @@ export default async (req, res) => {
             count: s.techs.length,
         })));
     } catch (err) {
-        return res.status(500).json({ error: err.message });
+        return sendJsonError(res, 500, 'internal_error', err.message);
     }
 };

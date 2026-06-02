@@ -1,5 +1,6 @@
 import { generateProfile } from './apply-readme.js';
 import { previewCache }    from '../src/preview-cache.js';
+import { requireCredentials, sendJsonError, boolParam } from './_shared.js';
 
 /**
  * GET /preview-readme
@@ -11,11 +12,11 @@ import { previewCache }    from '../src/preview-cache.js';
  *   refresh   Set to "true" to bypass cache and regenerate
  */
 export default async (req, res) => {
-    const token    = req.session?.github_token;
-    const username = req.session?.github_username;
-    if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
+    const creds = requireCredentials(req, res);
+    if (!creds) return;
+    const { token, username } = creds;
 
-    const refresh = req.query.refresh === 'true';
+    const refresh = boolParam(req.query.refresh);
 
     if (!refresh) {
         const cached = previewCache.get(username);
@@ -27,6 +28,7 @@ export default async (req, res) => {
                 ratingSvg:     cached.ratingSvg,
                 techGridSvg:   cached.techGridSvg,
                 monkeytypeSvg: cached.monkeytypeSvg,
+                accountTiles:  cached.accountTiles ?? {},
                 insightsMd:    cached.insightsMd,
             });
         }
@@ -37,7 +39,10 @@ export default async (req, res) => {
             apiKey:   req.session.monkeytype_key   ?? null,
             username: req.session.monkeytype_username ?? null,
         };
-        const profile = await generateProfile(token, username, monkeyOptions);
+        const extraOptions = {
+            wakatimeKey: req.session.wakatime_key ?? process.env.WAKATIME_API_KEY ?? null,
+        };
+        const profile = await generateProfile(token, username, monkeyOptions, null, extraOptions);
         previewCache.set(username, profile);
         return res.json({
             ok:            true,
@@ -46,10 +51,11 @@ export default async (req, res) => {
             ratingSvg:     profile.ratingSvg,
             techGridSvg:   profile.techGridSvg,
             monkeytypeSvg: profile.monkeytypeSvg,
+            accountTiles:  profile.accountTiles ?? {},
             insightsMd:    profile.insightsMd,
         });
     } catch (err) {
         console.error('[preview-readme]', err.message);
-        return res.status(500).json({ error: err.message });
+        return sendJsonError(res, 500, 'internal_error', err.message);
     }
 };

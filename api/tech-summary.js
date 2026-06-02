@@ -4,6 +4,7 @@ import { renderCherryBlossom } from '../src/backgrounds/cherry-blossom.js';
 import { renderGeometric } from '../src/backgrounds/geometric.js';
 import { renderVaporWave } from '../src/backgrounds/vapor-wave.js';
 import LANGUAGE_ICON_MAP from '../src/icons/languages.js';
+import { resolveAuth, sendErrorSvg, intParam, listParam } from './_shared.js';
 
 const backgrounds = {
     'cherry-blossom': renderCherryBlossom,
@@ -12,13 +13,13 @@ const backgrounds = {
 };
 
 export default async (req, res) => {
-    const { background, limit, sort, exclude } = req.query;
+    const { background, limit, sort } = req.query;
 
     res.setHeader('Content-Type', 'image/svg+xml');
 
-    const token = req.session?.github_token ?? process.env.GITHUB_TOKEN;
+    const { token } = resolveAuth(req, { allowEnv: true });
     const repos = await getAllRepos(token);
-    if (!repos) return res.status(401).send('GitHub not connected');
+    if (!repos) return sendErrorSvg(res, 'GitHub not connected');
 
     const langFreq = {};
     repos.forEach(repo => {
@@ -27,7 +28,7 @@ export default async (req, res) => {
         }
     });
 
-    const excluded = exclude ? exclude.split(',').map(s => s.trim()) : [];
+    const excluded = listParam(req.query.exclude);
 
     let langs = Object.entries(langFreq)
         .filter(([lang]) => LANGUAGE_ICON_MAP[lang] && !excluded.includes(lang));
@@ -39,7 +40,7 @@ export default async (req, res) => {
     }
 
     if (limit && /^\d+$/.test(limit)) {
-        langs = langs.slice(0, parseInt(limit, 10));
+        langs = langs.slice(0, intParam(limit, langs.length, { min: 0 }));
     }
 
     const icons = langs.map(([lang]) => LANGUAGE_ICON_MAP[lang]);
@@ -47,6 +48,6 @@ export default async (req, res) => {
     try {
         return res.send(renderTechSummary(icons, backgrounds[background]));
     } catch (err) {
-        return res.send(err.message);
+        return sendErrorSvg(res, err.message);
     }
 };

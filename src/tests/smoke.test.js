@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { spawn } from 'node:child_process';
+import { routes } from '../../api/_routes.js';
 
 const PORT = 9876;
 let server;
@@ -36,18 +37,27 @@ describe('HTTP smoke tests', () => {
         expect(body).toContain('github-pretty-readme');
     });
 
-    test('API routes are registered (not 404)', async () => {
-        const routes = [
-            '/developer-rating',
-            '/tech-spider',
-            '/tech-list',
-            '/tech-categories',
-            '/monkeytype',
-            '/account-summary-md',
-        ];
-        for (const route of routes) {
-            const res = await fetch(`http://localhost:${PORT}${route}`);
-            expect(res.status, `${route} returned 404 — route not registered`).not.toBe(404);
+    test('every route in the manifest is mounted (not 404)', async () => {
+        // Derive the expectation from api/_routes.js so the manifest is the single
+        // source of truth: if a descriptor is dropped, this test stops covering it.
+        expect(routes.length).toBeGreaterThan(0);
+        for (const { method, path } of routes) {
+            // redirect:'manual' keeps auth-gated routes from following their 302
+            // to '/', so we observe the route itself rather than the landing page.
+            const res = await fetch(`http://localhost:${PORT}${path}`, { method: method.toUpperCase(), redirect: 'manual' });
+            expect(res.status, `${method.toUpperCase()} ${path} returned 404 — route not registered`).not.toBe(404);
+        }
+    }, 30_000);
+
+    test('auth-gated routes redirect unauthenticated requests', async () => {
+        const gated = routes.filter(r => r.auth);
+        expect(gated.length).toBeGreaterThan(0);
+        for (const { method, path } of gated) {
+            const res = await fetch(`http://localhost:${PORT}${path}`, { method: method.toUpperCase(), redirect: 'manual' });
+            // `redirect: 'manual'` surfaces a 3xx directly, or an opaque-redirect
+            // (type 'opaqueredirect', status 0) depending on the fetch runtime.
+            const redirected = res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400);
+            expect(redirected, `${method.toUpperCase()} ${path} should redirect when unauthenticated (got ${res.status})`).toBe(true);
         }
     });
 

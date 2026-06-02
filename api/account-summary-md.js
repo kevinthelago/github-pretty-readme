@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getAllRepos } from '../src/github/repos.js';
+import { resolveAuth } from './_shared.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -13,7 +14,7 @@ export default async (req, res) => {
     res.setHeader('Content-Type', 'text/plain');
 
     try {
-        const token = req.session?.github_token ?? process.env.GITHUB_TOKEN;
+        const { token } = resolveAuth(req, { allowEnv: true });
         const repos = await getAllRepos(token);
         if (!repos) return res.status(401).send('GitHub not connected');
 

@@ -9,6 +9,9 @@ Your GitHub profile README is usually a snapshot frozen in time. You set it up o
 - An **AI-written bio** — regenerated from your real commit history, not a template
 - **SCORE.md** per repo — a code quality report graded A–F across six dimensions
 - **AI topics and descriptions** for repos that are missing them
+- **Account tiles** -- opt-in extras: a contribution heatmap (with streaks), a GitHub stats card, a language-trend chart, social-link badges, a recent-languages tile, a top-repositories grid, and a day-by-hour activity clock
+- **Repo tiles** -- a repo card, a weekly commit-activity chart, and a shields.io tech-badge row for any single repo
+- **Typing & coding stats** -- optional Monkeytype WPM and WakaTime coding-time charts
 
 Everything outputs as SVG or Markdown, embeds directly into any README, and can run on a daily cron so it's always current.
 
@@ -58,7 +61,7 @@ GITHUB_APP_CLIENT_SECRET=your-oauth-app-client-secret
 BASE_URL=http://localhost:8080
 ```
 
-For your GitHub OAuth App, set the callback URL to `http://localhost:8080/auth/callback`.
+For your GitHub OAuth App, set the callback URL to `http://localhost:8088/auth/callback`.
 
 ### 3 — Start the server
 
@@ -66,7 +69,7 @@ For your GitHub OAuth App, set the callback URL to `http://localhost:8080/auth/c
 npm start
 ```
 
-Open `http://localhost:8080`. Sign in with GitHub and you'll land on the preview dashboard.
+Open `http://localhost:8088`. Sign in with GitHub and you'll land on the preview dashboard.
 
 ---
 
@@ -89,9 +92,41 @@ Every graphic is also available as a plain URL you can drop into any markdown fi
 
 <!-- Tech cards grid -->
 ![Tech Stack](https://your-service.run.app/tech-spider?type=cards&categories=languages,frameworks,ai&limit=12)
+
+<!-- Contribution heatmap + streaks -->
+![Contribution Graph](https://your-service.run.app/contribution-graph?username=octocat)
+
+<!-- GitHub stats card -->
+![GitHub Stats](https://your-service.run.app/stats-card?username=octocat)
+
+<!-- Languages worked in recently, weighted by commit activity -->
+![Active Languages](https://your-service.run.app/active-languages?username=octocat&days=90)
+
+<!-- Cumulative language-usage-over-time, stacked area -->
+![Language Trend](https://your-service.run.app/language-trend?limit=8)
+
+<!-- Day-by-hour activity clock -->
+![Activity Clock](https://your-service.run.app/activity-clock?username=octocat)
+
+<!-- A grid of your most notable repositories -->
+![Top Repos](https://your-service.run.app/top-repos?username=octocat&sort=stars&limit=6)
+
+<!-- A card for a single repo -->
+![Repo Card](https://your-service.run.app/repo-card?repo=octocat/Hello-World)
+
+<!-- Weekly commit activity for a single repo -->
+![Repo Activity](https://your-service.run.app/repo-activity?repo=octocat/Hello-World)
+
+<!-- Brand badges linking to your socials -->
+![Social Links](https://your-service.run.app/social-links?links=github:octocat,linkedin:octocat)
+
+<!-- WakaTime coding time (requires a connected WakaTime key) -->
+![Coding Time](https://your-service.run.app/wakatime?range=last_30_days)
 ```
 
 The SVGs are themed and adapt to GitHub's light and dark mode automatically.
+
+> The public SVG/data endpoints are rate-limited for anonymous traffic (default 60 requests / 60 s per IP + token; tune via `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS`). Signed-in sessions and the `/healthz` probe are exempt. Over-limit requests get a `429` with `Retry-After` and `X-RateLimit-*` headers. The web UI is served at the site root `/`.
 
 ### Pushing your profile README
 
@@ -157,6 +192,23 @@ Add `.pretty-readme.json` to your profile repository (`{username}/{username}`). 
 
 You can manage this file from the app UI or directly in GitHub. If this file doesn't exist, the cron job will refuse to run — intentional, so a fresh deploy can't accidentally bulk-update everything.
 
+The same file can opt into extra profile tiles (all off by default) via a `tiles` block. The available tile ids are `contributionGraph`, `statsCard`, `languageTrend`, `socialLinks`, `activeLanguages`, `topRepos`, `activityClock`, and `wakatime` — each also a standalone endpoint you can embed directly:
+
+```json
+{
+  "repos": ["my-main-project"],
+  "tiles": {
+    "contributionGraph": true,
+    "statsCard": true,
+    "activeLanguages": true,
+    "topRepos": true
+  },
+  "social": { "github": "octocat", "linkedin": "octocat" }
+}
+```
+
+Enabled tiles are rendered as SVGs (reusing the same data builders as the standalone endpoints), pushed to `assets/`, and injected into your profile README between their markers on the next apply. The `socialLinks` tile reads the top-level `social` map.
+
 ### Step 2 — Add the workflow
 
 In your profile repository (`{username}/{username}`), create `.github/workflows/pretty-readme.yml`:
@@ -176,7 +228,7 @@ jobs:
       - name: Update profile and open repo PRs
         run: |
           curl -fsSL \
-            -H "Cookie: session=${{ secrets.PRETTY_README_SESSION }}" \
+            -H "Authorization: Bearer ${{ secrets.PRETTY_README_TOKEN }}" \
             "${{ secrets.PRETTY_README_URL }}/apply-all?score=true&readme=true&topics=true&descriptions=true"
 ```
 
@@ -196,16 +248,15 @@ Go to your profile repo → **Settings → Secrets and variables → Actions** a
 | Secret | Value |
 |:--|:--|
 | `PRETTY_README_URL` | Your deployed service URL, e.g. `https://github-pretty-readme-abc123-uc.a.run.app` |
-| `PRETTY_README_SESSION` | Your session cookie — see below |
+| `PRETTY_README_TOKEN` | A long-lived API token (see below) |
 
-**Getting the session cookie:**
+**Minting an API token:**
 
 1. Sign into the service in your browser
-2. Open DevTools → Application → Cookies → your service domain
-3. Copy the value of the `session` cookie
-4. Paste it as the `PRETTY_README_SESSION` secret
+2. Mint a token with `POST /tokens` (the plaintext token is returned **once** -- copy it immediately)
+3. Paste it as the `PRETTY_README_TOKEN` secret
 
-> Session cookies expire after 7 days. You'll need to re-copy the value after each re-login. A future version will support a long-lived API token to avoid this — for now it's the tradeoff for using the same cookie-session auth as the UI.
+> API tokens do not expire, so there is no more re-copying a session cookie every week. They are sent as `Authorization: Bearer <token>`, are stored only as SHA-256 hashes server-side, and are revocable any time with `DELETE /tokens/:id` -- rotate by minting a new one and deleting the old. The old copied-session-cookie path has been retired: a bare `Authorization: Bearer <anything>` is no longer trusted, since the service now verifies the token against its store.
 
 ### Step 4 — Watch the PRs roll in
 
@@ -260,7 +311,7 @@ The GitHub OAuth App callback URL needs to be updated to your Cloud Run URL: `ht
 
 The project is open source: [github.com/kevinthelago/github-pretty-readme](https://github.com/kevinthelago/github-pretty-readme)
 
-PRs welcome — especially around the session cookie expiry problem for cron jobs, and expanding the code quality scoring dimensions.
+PRs welcome — especially around expanding the code quality scoring dimensions and the optional profile tiles (contribution graph, stats card, WakaTime, language trend, social links).
 
 ---
 

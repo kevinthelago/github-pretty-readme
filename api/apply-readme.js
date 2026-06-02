@@ -5,9 +5,27 @@ import { renderDeveloperRating }            from '../src/tiles/developer-rating.
 import { buildTechSeries, lookupIcon }      from '../src/github/tech-data.js';
 import { renderTechGrid }                   from '../src/tiles/tech-grid.js';
 import { renderMonkeytypeChart }            from '../src/tiles/monkeytype-chart.js';
+import { getContributionCalendar, getUserStats } from '../src/github/graphql.js';
+import { renderContributionGraph }          from '../src/tiles/contribution-graph.js';
+import { renderStatsCard }                  from '../src/tiles/stats-card.js';
+import { renderLanguageTrend }              from '../src/tiles/language-trend.js';
+import { renderSocialLinks }                from '../src/tiles/social-links.js';
+import { buildDataset as buildLanguageTrendDataset } from './language-trend.js';
+import { badgesFromConfig as buildSocialBadges }     from './social-links.js';
+import { renderActiveLanguages }            from '../src/tiles/active-languages.js';
+import { renderTopRepos }                   from '../src/tiles/top-repos.js';
+import { renderActivityClock }              from '../src/tiles/activity-clock.js';
+import { renderWakatimeChart }              from '../src/tiles/wakatime-chart.js';
+import { getRecentLanguageWeights }         from '../src/github/recent-languages.js';
+import { getContributionTimes }             from '../src/github/contribution-times.js';
+import { getTimeByLanguage, createWakatimeClient } from '../src/wakatime/client.js';
+import { selectRepos }                      from './top-repos.js';
+import { toCardData }                       from './repo-card.js';
+import { readConfig, resolveEnabledTiles }  from '../src/github/config.js';
 import { GoogleGenerativeAI }              from '@google/generative-ai';
 import { previewCache }                    from '../src/preview-cache.js';
 import { scanCache }                      from '../src/scan-cache.js';
+import { sendJsonError, boolParam }       from './_shared.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_STUDIO_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -398,9 +416,102 @@ const renderInsights = (rating, insights, repos, recommendations = '') => {
     return parts.join('\n');
 };
 
+// ── Optional account tiles (opt-in via .pretty-readme.json) ─────────────────────
+
+// Defaults mirror the /language-trend endpoint (REPO_CAP_DEFAULT / LANG_LIMIT_DEFAULT).
+const LANGUAGE_TREND_REPO_CAP = 40;
+const LANGUAGE_TREND_LANG_LIMIT = 6;
+
+// Defaults mirror the Phase 5 endpoints (/active-languages, /top-repos, /wakatime).
+const ACTIVE_LANGUAGES_DAYS = 90;   // matches /active-languages default window
+const TOP_REPOS_LIMIT       = 6;    // matches /top-repos DEFAULT_LIMIT
+const WAKATIME_RANGE        = 'last_7_days'; // matches /wakatime default range
+
+/**
+ * Builders for the opt-in account tiles, keyed by the canonical tile id used in
+ * `.pretty-readme.json`. Each builder receives a context `{ token, username,
+ * repos, config }` and returns an SVG string. Data builders are reused from the
+ * standalone endpoints (`buildLanguageTrendDataset`, `buildSocialBadges`) rather
+ * than duplicated, so the apply output stays in lock-step with the endpoints.
+ */
+const ACCOUNT_TILE_BUILDERS = {
+    contributionGraph: async ({ token, username }) =>
+        renderContributionGraph(await getContributionCalendar(token, username), undefined, { username }),
+    statsCard: async ({ token, username }) =>
+        renderStatsCard(await getUserStats(token, username)),
+    languageTrend: async ({ token, repos }) =>
+        renderLanguageTrend(await buildLanguageTrendDataset(repos, token, LANGUAGE_TREND_REPO_CAP, LANGUAGE_TREND_LANG_LIMIT)),
+    socialLinks: async ({ config }) =>
+        renderSocialLinks(buildSocialBadges(config?.social)),
+    activeLanguages: async ({ token, username }) =>
+        renderActiveLanguages(
+            (await getRecentLanguageWeights(username, { days: ACTIVE_LANGUAGES_DAYS, token }))
+                ?? { langs: [], totalCommits: 0, days: ACTIVE_LANGUAGES_DAYS },
+        ),
+    topRepos: async ({ repos }) =>
+        renderTopRepos(selectRepos(repos, { limit: TOP_REPOS_LIMIT }).map(toCardData)),
+    activityClock: async ({ token, username }) =>
+        renderActivityClock(await getContributionTimes(username, token), undefined, { username }),
+    wakatime: async ({ wakatimeKey }) => {
+        if (!wakatimeKey) throw new Error('WakaTime not connected');
+        const languages = await getTimeByLanguage(WAKATIME_RANGE, createWakatimeClient({ apiKey: wakatimeKey }));
+        if (!languages || languages.length === 0) throw new Error('no WakaTime language data');
+        return renderWakatimeChart(languages, { range: WAKATIME_RANGE });
+    },
+};
+
+/** Asset path + alt text per tile, used when injecting into the profile README. */
+const ACCOUNT_TILE_ASSETS = {
+    contributionGraph: { asset: 'assets/contribution-graph.svg', alt: 'Contribution Graph', marker: 'contribution' },
+    statsCard:         { asset: 'assets/stats-card.svg',         alt: 'GitHub Stats',       marker: 'stats' },
+    languageTrend:     { asset: 'assets/language-trend.svg',     alt: 'Language Trend',     marker: 'language-trend' },
+    socialLinks:       { asset: 'assets/social-links.svg',       alt: 'Social Links',       marker: 'social-links' },
+    activeLanguages:   { asset: 'assets/active-languages.svg',   alt: 'Active Languages',   marker: 'active-languages' },
+    topRepos:          { asset: 'assets/top-repos.svg',          alt: 'Top Repositories',   marker: 'top-repos' },
+    activityClock:     { asset: 'assets/activity-clock.svg',     alt: 'Activity Clock',     marker: 'activity-clock' },
+    wakatime:          { asset: 'assets/wakatime.svg',           alt: 'WakaTime',           marker: 'wakatime' },
+};
+
+/**
+ * Read the user's `.pretty-readme.json`, resolve the enabled optional tiles, and
+ * render each one whose builder is available. Failures (config read, GraphQL,
+ * render) are logged and skipped so one tile never breaks the whole apply.
+ *
+ * @returns {Promise<Record<string,string>>} Map of enabled tile id → SVG string.
+ */
+export async function buildAccountTiles(ctx, log = () => {}) {
+    const { token, username } = ctx;
+    let config;
+    let enabled;
+    try {
+        const result = await readConfig(token, username);
+        config = result?.config;
+        enabled = resolveEnabledTiles(config);
+    } catch (err) {
+        log(`Config read failed: ${err.message} (no optional tiles)`);
+        return {};
+    }
+
+    const buildCtx = { ...ctx, config };
+    const tiles = {};
+    for (const key of enabled) {
+        const build = ACCOUNT_TILE_BUILDERS[key];
+        if (!build) {
+            log(`Tile "${key}" enabled but not yet implemented — skipping`);
+            continue;
+        }
+        try {
+            tiles[key] = await build(buildCtx);
+        } catch (err) {
+            log(`Tile "${key}" failed: ${err.message} (skipping)`);
+        }
+    }
+    return tiles;
+}
+
 // ── Core profile generator ────────────────────────────────────────────────────
 
-export async function generateProfile(token, username, monkeyOptions = {}, onProgress = null) {
+export async function generateProfile(token, username, monkeyOptions = {}, onProgress = null, extraOptions = {}) {
     const steps = [];
     const emit  = (pct, msg) => { onProgress?.({ pct, msg }); };
     const log   = (msg) => { steps.push(msg); console.log(`[apply-readme] ${msg}`); };
@@ -480,6 +591,11 @@ export async function generateProfile(token, username, monkeyOptions = {}, onPro
         }
     }
 
+    emit(64, 'Rendering account tiles…');
+    log('Rendering opt-in account tiles…');
+    const accountTiles = await buildAccountTiles({ token, username, repos, wakatimeKey: extraOptions.wakatimeKey ?? null }, log);
+    if (Object.keys(accountTiles).length) log(`Enabled account tiles: ${Object.keys(accountTiles).join(', ')}`);
+
     emit(68, 'Generating recommendations…');
     log('Generating personalised recommendations…');
     const recommendations = await generateRecommendations(repos, rating, insights);
@@ -488,7 +604,7 @@ export async function generateProfile(token, username, monkeyOptions = {}, onPro
     log('Rendering developer insights…');
     const insightsMd = renderInsights(rating, insights, repos, recommendations);
 
-    return { bio, ratingSvg, techGridSvg, gridCols, gridRows, badges, monkeytypeSvg, insightsMd, steps };
+    return { bio, ratingSvg, techGridSvg, gridCols, gridRows, badges, monkeytypeSvg, accountTiles, insightsMd, steps };
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
@@ -505,16 +621,16 @@ export default async (req, res) => {
             const userRes = await fetch('https://api.github.com/user', {
                 headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
             });
-            if (!userRes.ok) return res.status(401).json({ error: 'Invalid token' });
+            if (!userRes.ok) return sendJsonError(res, 401, 'invalid_token', 'Invalid token');
             username = (await userRes.json()).login;
         } catch {
-            return res.status(401).json({ error: 'Failed to verify token' });
+            return sendJsonError(res, 401, 'invalid_token', 'Failed to verify token');
         }
     }
 
-    if (!token || !username) return res.status(401).json({ error: 'Not authenticated' });
+    if (!token || !username) return sendJsonError(res, 401, 'unauthenticated', 'Not authenticated');
 
-    const dryRun = req.query.dry_run === 'true';
+    const dryRun = boolParam(req.query.dry_run);
     const isSSE  = req.headers.accept?.includes('text/event-stream');
 
     if (isSSE) {
@@ -530,17 +646,20 @@ export default async (req, res) => {
             apiKey:   req.session?.monkeytype_key ?? process.env.MONKEYTYPE_API_KEY ?? null,
             username: req.session?.monkeytype_username ?? process.env.MONKEYTYPE_USERNAME ?? null,
         };
+        const extraOptions = {
+            wakatimeKey: req.session?.wakatime_key ?? process.env.WAKATIME_API_KEY ?? null,
+        };
 
         const onProgress = send ? ({ pct, msg }) => send({ type: 'progress', pct, msg }) : null;
 
         // Reuse cached preview if available so we don't regenerate on every apply
         const cachedProfile = previewCache.get(username);
         if (cachedProfile) send?.({ type: 'progress', pct: 80, msg: 'Using cached profile data…' });
-        const profile = cachedProfile ?? await generateProfile(token, username, monkeyOptions, onProgress);
+        const profile = cachedProfile ?? await generateProfile(token, username, monkeyOptions, onProgress, extraOptions);
         if (!cachedProfile) previewCache.set(username, profile);
 
         if (dryRun) {
-            const result = { ok: true, dry_run: true, steps: profile.steps, bio: profile.bio };
+            const result = { ok: true, dry_run: true, steps: profile.steps, bio: profile.bio, tiles: Object.keys(profile.accountTiles ?? {}) };
             if (send) { send({ type: 'done', ...result }); res.end(); } else { res.json(result); }
             return;
         }
@@ -549,13 +668,21 @@ export default async (req, res) => {
         const README_PATH = 'README.md';
 
         const readmeFile = await getFile(token, repo, README_PATH);
-        if (!readmeFile) return res.status(404).json({ error: `Profile repo ${repo} not found or README.md missing` });
+        if (!readmeFile) return sendJsonError(res, 404, 'not_found', `Profile repo ${repo} not found or README.md missing`);
 
         let readme = Buffer.from(readmeFile.content, 'base64').toString('utf8');
 
         const SECTIONS = [
             { key: 'summary',   start: '<!-- summary-start -->',     end: '<!-- summary-end -->' },
             { key: 'rating',    start: '<!-- rating-start -->',       end: '<!-- rating-end -->' },
+            { key: 'contribution', start: '<!-- contribution-start -->', end: '<!-- contribution-end -->', optional: true, enabled: () => !!profile.accountTiles?.contributionGraph },
+            { key: 'stats',     start: '<!-- stats-start -->',        end: '<!-- stats-end -->',   optional: true, enabled: () => !!profile.accountTiles?.statsCard },
+            { key: 'language',  start: '<!-- language-trend-start -->', end: '<!-- language-trend-end -->', optional: true, enabled: () => !!profile.accountTiles?.languageTrend },
+            { key: 'social',    start: '<!-- social-links-start -->', end: '<!-- social-links-end -->', optional: true, enabled: () => !!profile.accountTiles?.socialLinks },
+            { key: 'active-languages', start: '<!-- active-languages-start -->', end: '<!-- active-languages-end -->', optional: true, enabled: () => !!profile.accountTiles?.activeLanguages },
+            { key: 'top-repos', start: '<!-- top-repos-start -->',     end: '<!-- top-repos-end -->',     optional: true, enabled: () => !!profile.accountTiles?.topRepos },
+            { key: 'activity-clock', start: '<!-- activity-clock-start -->', end: '<!-- activity-clock-end -->', optional: true, enabled: () => !!profile.accountTiles?.activityClock },
+            { key: 'wakatime-tile', start: '<!-- wakatime-start -->',   end: '<!-- wakatime-end -->',   optional: true, enabled: () => !!profile.accountTiles?.wakatime },
             { key: 'monkeytype',start: '<!-- monkeytype-start -->',   end: '<!-- monkeytype-end -->', optional: true, enabled: () => !!profile.monkeytypeSvg },
             { key: 'charts',    start: '<!-- tech-charts-start -->',   end: '<!-- tech-charts-end -->' },
             { key: 'badges',    start: '<!-- tech-start -->',          end: '<!-- tech-end -->' },
@@ -568,6 +695,17 @@ export default async (req, res) => {
         await pushAsset(token, repo, 'assets/developer-rating.svg', profile.ratingSvg);
         const ratingLink = `\n<a href="https://github.com/${repo}/blob/main/DEVELOPER_INSIGHTS.md"><img src="./assets/developer-rating.svg" width="100%" alt="Developer Rating" /></a>\n`;
         readme = inject(readme, '<!-- rating-start -->', '<!-- rating-end -->', ratingLink);
+
+        // Opt-in account tiles (#42) — push each enabled tile's asset and inject its image.
+        for (const [key, { asset, alt }] of Object.entries(ACCOUNT_TILE_ASSETS)) {
+            const svg = profile.accountTiles?.[key];
+            if (!svg) continue;
+            send?.({ type: 'progress', pct: 85, msg: `Pushing ${alt}…` });
+            await pushAsset(token, repo, asset, svg);
+            const marker = ACCOUNT_TILE_ASSETS[key].marker;
+            const img = `\n<img src="./${asset}" width="100%" alt="${alt}" />\n`;
+            readme = inject(readme, `<!-- ${marker}-start -->`, `<!-- ${marker}-end -->`, img);
+        }
 
         if (profile.monkeytypeSvg) {
             send?.({ type: 'progress', pct: 87, msg: 'Pushing Monkeytype chart…' });
@@ -621,6 +759,6 @@ jobs:
     } catch (err) {
         console.error('[apply-readme]', err.message);
         if (send) { send({ type: 'error', msg: err.message }); res.end(); }
-        else res.status(500).json({ error: err.message });
+        else sendJsonError(res, 500, 'internal_error', err.message);
     }
 };
