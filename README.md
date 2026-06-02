@@ -469,6 +469,39 @@ Uses AI to suggest and apply descriptions to owned GitHub repositories that curr
 http://localhost:8088/improve-descriptions?dry_run=true
 ```
 
+#### GET /active-languages
+
+Generates an SVG tile of the languages a user has worked in **recently**, weighted by commit activity inside the window (not lifetime repo bytes). Cached for 1 hour per `(username, days)`. Always responds with an SVG — a missing user or any error renders a graceful empty tile rather than a 4xx/5xx body.
+
+**Query Parameters:**
+
+| Name         | Default | Description |
+| :----------- | :------ | :---------- |
+| `username`   |         | The GitHub login whose recent activity is charted (required; absent renders an empty tile). |
+| `days`       | `90`    | Recent window in days. Non-numeric or `<= 0` falls back to `90`; capped at `365`. |
+| `background` | `null`  | Theme: `cherry-blossom`, `geometric`, or `vapor-wave`. |
+
+**Example URL:**
+```
+http://localhost:8088/active-languages?username=octocat&days=180&background=geometric
+```
+
+#### GET /activity-clock
+
+Renders a 7×24 (day-of-week × hour-of-day) heatmap SVG of a user's coding activity, derived from GitHub public-event timestamps, with the busiest day and hour labelled. Falls back to a graceful empty tile when no data is available.
+
+**Query Parameters:**
+
+| Name         | Default | Description |
+| :----------- | :------ | :---------- |
+| `username`   |         | GitHub login (required; absent renders an empty tile). |
+| `background` | `null`  | Theme: `cherry-blossom`, `geometric`, or `vapor-wave`. |
+
+**Example URL:**
+```
+http://localhost:8088/activity-clock?username=octocat&background=vapor-wave
+```
+
 #### GET /monkeytype
 
 Generates an SVG chart visualizing Monkeytype typing speed personal bests across different time modes. Requires an active session with a connected Monkeytype API key or `MONKEYTYPE_API_KEY` set in the environment.
@@ -493,6 +526,105 @@ Generates an SVG chart of coding time by language from the WakaTime API. Resolve
 **Example URL:**
 ```
 http://localhost:8088/wakatime?range=last_30_days
+```
+
+#### GET /language-trend
+
+Approximates how a user's language usage has grown over time by bucketing each repository's language bytes by the repo's creation year and rendering a cumulative **stacked-area** chart. Reads the session GitHub token when present, else `GITHUB_TOKEN`. Cached for 15 minutes per user. `401` when no GitHub token is available.
+
+**Query Parameters:**
+
+| Name       | Default | Description |
+| :--------- | :------ | :---------- |
+| `repos`    | `40`    | Cap on the number of (largest, non-fork) repos scanned for `/languages` (min 1). |
+| `limit`    | `6`     | Max languages shown as stacked series (min 1). |
+| `username` | `env`   | Cache key when unauthenticated (the session user takes precedence when signed in). |
+
+**Example URL:**
+```
+http://localhost:8088/language-trend?repos=60&limit=8
+```
+
+#### GET /social-links
+
+Renders a row of brand badges linking to a user's social profiles. Links come (in order) from the `?links=` query param, or — when authenticated — the `social` map in the user's `.pretty-readme.json`. Unknown platforms degrade to a generic link badge.
+
+**Query Parameters:**
+
+| Name       | Default | Description |
+| :--------- | :------ | :---------- |
+| `links`    |         | Comma-separated `platform:handle` pairs, e.g. `github:octocat,email:me@example.com`. Overrides config when present. Only the first colon splits each pair, so handles may be full URLs. |
+| `username` |         | When unauthenticated and `links` is omitted, the login whose config `social` map is read (requires `GITHUB_TOKEN`). |
+
+**Example URL:**
+```
+http://localhost:8088/social-links?links=github:octocat,linkedin:octocat,email:octocat@github.com
+```
+
+#### GET /repo-tech-badges
+
+Returns a **Markdown** (plain-text) row of shields.io tech badges derived from a repo's primary language and topics. `200` with an empty body when no tech is detected; `400` for a missing/malformed `repo`; `404` when not found; `502` on an upstream error.
+
+**Query Parameters:**
+
+| Name   | Default | Description |
+| :----- | :------ | :---------- |
+| `repo` |         | **Required.** `owner/name`. |
+
+**Example URL:**
+```
+http://localhost:8088/repo-tech-badges?repo=octocat/Hello-World
+```
+
+#### GET /repo-card
+
+Renders a theme-aware SVG card for a single repo with its stars, forks, open issues, primary language, and last-updated time. `400` for a missing/malformed `repo`; `404` when not found; `502` on an upstream error.
+
+**Query Parameters:**
+
+| Name   | Default | Description |
+| :----- | :------ | :---------- |
+| `repo` |         | **Required.** `owner/name`. |
+
+**Example URL:**
+```
+http://localhost:8088/repo-card?repo=octocat/Hello-World
+```
+
+#### GET /repo-activity
+
+Renders a repository's weekly commit activity for the last year as a themed SVG bar chart. Always responds with an SVG — error and empty states render as SVG cards so the image never breaks in a README.
+
+**Query Parameters:**
+
+| Name   | Default | Description |
+| :----- | :------ | :---------- |
+| `repo` |         | **Required.** `owner/name`, or a bare `name` combined with `user=`. |
+| `user` |         | Owner login, used when `repo` is a bare name. |
+
+**Example URLs:**
+```
+http://localhost:8088/repo-activity?repo=octocat/Hello-World
+http://localhost:8088/repo-activity?user=octocat&repo=Hello-World
+```
+
+#### GET /top-repos
+
+Renders a grid of repo cards for a user's most notable repositories (reusing the repo-card renderer). Forks are excluded by default; an empty selection renders a graceful placeholder. `400` for a missing `username`; `502` on an upstream error.
+
+**Query Parameters:**
+
+| Name       | Default | Description |
+| :--------- | :------ | :---------- |
+| `username` |         | **Required.** GitHub login. |
+| `sort`     | `stars` | `stars` or `updated` (most recently pushed). |
+| `limit`    | `6`     | Number of cards (clamped to 1–12). |
+| `columns`  | `2`     | Grid columns. |
+| `forks`    | `false` | `true`/`1` includes forks. |
+
+**Example URL:**
+```
+http://localhost:8088/top-repos?username=octocat&sort=updated&limit=8&columns=3
 ```
 
 ### Health
@@ -559,8 +691,16 @@ you want to `true`:
 | :------------------ | :------ |
 | `contributionGraph` | Contribution heatmap + current/longest streak (`/contribution-graph`). |
 | `statsCard`         | Stars / commits / PRs / issues / followers / contributed-to card (`/stats-card`). |
-| `languageTrend`     | Cumulative language-usage-over-time stacked area chart (rendered at apply time; no standalone endpoint yet). |
-| `socialLinks`       | Brand badges linking to your social profiles, built from the `social` map below (rendered at apply time; no standalone endpoint yet). |
+| `languageTrend`     | Cumulative language-usage-over-time stacked area chart (`/language-trend`). |
+| `socialLinks`       | Brand badges linking to your social profiles, built from the `social` map below (`/social-links`). |
+| `activeLanguages`   | Languages worked in recently, weighted by commit activity (`/active-languages`). |
+| `topRepos`          | A grid of repo cards for your most notable repositories (`/top-repos`). |
+| `activityClock`     | A 7×24 day-by-hour heatmap of your coding activity (`/activity-clock`). |
+| `wakatime`          | Coding time by language from WakaTime — requires a connected WakaTime key (`/wakatime`). |
+
+Each tile is also a live, standalone, rate-limited GET endpoint (linked above) you
+can embed directly; the opt-in `tiles` block just renders the same output into your
+profile README at apply time.
 
 The `socialLinks` tile reads the top-level `social` map — `platform: handle`
 pairs (e.g. `github`, `twitter`/`x`, `linkedin`, `devto`, `mastodon`, `email`,

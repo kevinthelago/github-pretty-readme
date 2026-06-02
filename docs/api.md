@@ -148,8 +148,10 @@ language badges, opt-in account tiles, `DEVELOPER_INSIGHTS.md`) plus an
 injecting each between its README markers. Supports **Server-Sent Events** when the
 request `Accept`s `text/event-stream`. Opt-in account tiles enabled in
 `.pretty-readme.json` (`tiles.contributionGraph`, `tiles.statsCard`,
-`tiles.languageTrend`, `tiles.socialLinks`) are rendered, pushed to `assets/`, and
-injected between their markers.
+`tiles.languageTrend`, `tiles.socialLinks`, `tiles.activeLanguages`,
+`tiles.topRepos`, `tiles.activityClock`, `tiles.wakatime`) are rendered, pushed to
+`assets/`, and injected between their markers. Each tile reuses the same data
+builder as its standalone endpoint, so the apply output stays in lock-step.
 
 | Parameter | Default | Description |
 | :-------- | :------ | :---------- |
@@ -348,6 +350,42 @@ non-fork). Returns a JSON summary.
 | :-------- | :------ | :---------- |
 | `dry_run` | `false` | `true` returns suggestions without applying. |
 
+### GET /active-languages
+
+Generates an SVG bar tile of the languages a user has worked in **recently**,
+weighted by commit activity inside the window (not lifetime repo bytes). Results
+are cached for 1h per `(username, days)`. Always responds `image/svg+xml` — a
+missing user or any error renders a graceful empty tile, never a 4xx/5xx body.
+
+| Parameter    | Default | Description |
+| :----------- | :------ | :---------- |
+| `username`   |         | GitHub login whose recent activity is charted (required; absent renders an empty tile). |
+| `days`       | `90`    | Recent window in days. Values `<= 0` or non-numeric fall back to `90`; capped at `365`. |
+| `background` | `null`  | Theme: `cherry-blossom`, `geometric`, or `vapor-wave`. |
+
+**Example:**
+```
+http://localhost:8088/active-languages?username=octocat&days=180&background=geometric
+```
+
+### GET /activity-clock
+
+Renders a 7×24 (day-of-week × hour-of-day) heatmap SVG of a user's coding
+activity, derived from GitHub public-event timestamps, with the busiest day and
+busiest hour labelled. Falls back to a graceful empty-state tile when no
+contribution data is available; returns **500** with a plain-text body on an
+unexpected error.
+
+| Parameter    | Default | Description |
+| :----------- | :------ | :---------- |
+| `username`   |         | GitHub login (required; absent renders an empty tile). |
+| `background` | `null`  | Theme: `cherry-blossom`, `geometric`, or `vapor-wave`. |
+
+**Example:**
+```
+http://localhost:8088/activity-clock?username=octocat&background=vapor-wave
+```
+
 ### GET /monkeytype
 
 Generates an SVG typing-speed chart from Monkeytype personal bests (standard English
@@ -363,6 +401,114 @@ the key from the session or `WAKATIME_API_KEY`. `401` when no key is connected;
 | Parameter | Default        | Description |
 | :-------- | :------------- | :---------- |
 | `range`   | `last_7_days`  | `last_7_days`, `last_30_days`, `last_6_months`, `last_year`, or `all_time`. |
+
+### GET /language-trend
+
+Approximates how a user's language usage has grown over time: it buckets each
+repository's language bytes by the repo's creation year and renders a cumulative
+**stacked-area** chart. Reads the session GitHub token when present, else
+`GITHUB_TOKEN`. Cached for 15 minutes per `(user, repos, limit)`. `401` when no
+GitHub token is available.
+
+| Parameter  | Default | Description |
+| :--------- | :------ | :---------- |
+| `repos`    | `40`    | Cap on the number of (largest, non-fork) repos scanned for `/languages` (min 1). |
+| `limit`    | `6`     | Max languages shown as stacked series (min 1). |
+| `username` | `env`   | Cache key when unauthenticated (the session user takes precedence when signed in). |
+
+**Example:**
+```
+http://localhost:8088/language-trend?repos=60&limit=8
+```
+
+### GET /social-links
+
+Renders a row of brand badges linking to a user's social profiles. Links come
+(in order) from the `?links=` query param, or — when authenticated — the `social`
+map in the user's `.pretty-readme.json`. Unknown platforms degrade to a generic
+link badge. Known platform keys include `github`, `twitter`/`x`, `linkedin`,
+`devto`/`dev`, `mastodon`, `youtube`, `instagram`, `twitch`, `discord`,
+`stackoverflow`, `medium`, `reddit`, `gitlab`, `bluesky`, `telegram`, `facebook`,
+`dribbble`, `behance`, `email`/`mail`, `website`/`web`, and `blog`.
+
+| Parameter  | Default | Description |
+| :--------- | :------ | :---------- |
+| `links`    |         | Comma-separated `platform:handle` pairs, e.g. `github:octocat,email:me@example.com`. Overrides config when present. The handle may itself contain colons (full URLs); only the first colon splits the pair. |
+| `username` |         | When unauthenticated and `links` is omitted, the login whose `.pretty-readme.json` `social` map is read (requires a `GITHUB_TOKEN`). |
+
+**Example:**
+```
+http://localhost:8088/social-links?links=github:octocat,linkedin:octocat,email:octocat@github.com
+```
+
+### GET /repo-tech-badges
+
+Returns a **Markdown** (plain-text) row of shields.io tech badges derived from a
+repo's primary language and topics. `200` with an empty body when no tech is
+detected; `400` for a missing/malformed `repo`; `404` when the repo is not found;
+`502` on an upstream fetch error.
+
+| Parameter | Default | Description |
+| :-------- | :------ | :---------- |
+| `repo`    |         | **Required.** `owner/name`. |
+
+**Example:**
+```
+http://localhost:8088/repo-tech-badges?repo=octocat/Hello-World
+```
+
+### GET /repo-card
+
+Renders a theme-aware SVG card for a single repo with its stars, forks, open
+issues, primary language, and last-updated time, sourced from the REST repo
+object. `400` for a missing/malformed `repo`; `404` when not found; `502` on an
+upstream fetch error.
+
+| Parameter | Default | Description |
+| :-------- | :------ | :---------- |
+| `repo`    |         | **Required.** `owner/name`. |
+
+**Example:**
+```
+http://localhost:8088/repo-card?repo=octocat/Hello-World
+```
+
+### GET /repo-activity
+
+Renders the repository's weekly commit activity for the last year as a themed SVG
+bar chart. Always responds `image/svg+xml` — error and empty states render as SVG
+cards so the image never breaks in a README.
+
+| Parameter | Default | Description |
+| :-------- | :------ | :---------- |
+| `repo`    |         | **Required.** `owner/name`, or a bare `name` combined with `user=`. A missing/unresolvable value renders a `Use ?repo=owner/name` SVG card. |
+| `user`    |         | Owner login, used when `repo` is a bare name. |
+
+**Example:**
+```
+http://localhost:8088/repo-activity?repo=octocat/Hello-World
+http://localhost:8088/repo-activity?user=octocat&repo=Hello-World
+```
+
+### GET /top-repos
+
+Renders a grid of repo cards for a user's most notable repositories (reusing the
+repo-card renderer). Forks are excluded by default; an empty selection renders a
+graceful placeholder. `400` for a missing `username`; `502` on an upstream fetch
+error.
+
+| Parameter  | Default | Description |
+| :--------- | :------ | :---------- |
+| `username` |         | **Required.** GitHub login. |
+| `sort`     | `stars` | `stars` or `updated` (most recently pushed). |
+| `limit`    | `6`     | Number of cards (clamped to 1–12). |
+| `columns`  | `2`     | Grid columns. |
+| `forks`    | `false` | `true`/`1` includes forks. |
+
+**Example:**
+```
+http://localhost:8088/top-repos?username=octocat&sort=updated&limit=8&columns=3
+```
 
 ---
 
