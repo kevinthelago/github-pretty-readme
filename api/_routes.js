@@ -43,6 +43,7 @@ import previewReadme              from './preview-readme.js';
 import contributionGraph          from './contribution-graph.js';
 import statsCard                  from './stats-card.js';
 import repositoryReadme           from './repository-readme.js';
+import activeLanguages            from './active-languages.js';
 import healthz                    from './healthz.js';
 import { getConfig, putConfig }                          from './config.js';
 import { authGithub, authCallback, authLogout, authMe }  from './auth.js';
@@ -92,6 +93,7 @@ export const routes = [
     { method: 'get', path: '/tech-categories',           handler: techCategories,         rateLimit: true },
     { method: 'get', path: '/improve-topics',            handler: improveTopics,          rateLimit: true },
     { method: 'get', path: '/improve-descriptions',      handler: improveDescriptions,    rateLimit: true },
+    { method: 'get', path: '/active-languages',          handler: activeLanguages,        rateLimit: true },
     { method: 'get', path: '/monkeytype', handler: monkeytype, rateLimit: true },
     { method: 'get', path: '/wakatime',   handler: wakatime,   rateLimit: true },
 
