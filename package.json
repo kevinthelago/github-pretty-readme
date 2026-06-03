@@ -9,7 +9,7 @@
   "dependencies": {
     "@eslint/js": "^10.0.1",
     "@google/generative-ai": "^0.24.1",
-    "axios": "^1.16.1",
+    "axios": "^1.17.0",
     "cookie-session": "^2.1.1",
     "express": "^5.2.1",
     "http-errors": "^2.0.1",
