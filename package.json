@@ -13,7 +13,7 @@
     "cookie-session": "^2.1.1",
     "express": "^5.2.1",
     "http-errors": "^2.0.1",
-    "simple-icons": "^16.21.0"
+    "simple-icons": "^16.22.0"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.8",
