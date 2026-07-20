@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '22.x'
           cache: npm
@@ -164,7 +164,7 @@ jobs:
             echo "relevant=false" >> $GITHUB_OUTPUT
           fi
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: steps.changes.outputs.relevant == 'true'
         with:
           node-version: '22.x'
